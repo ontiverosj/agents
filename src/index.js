@@ -35,7 +35,7 @@ app.get('/', (req, res) => {
 app.post('/agent/scout', async (req, res) => {
     const { lead_id } = req.body;
     try {
-        const result = await airtableRequest('Leads');
+        const result = await airtableRequest('Acquisition Leads');
         const record = result.records.find(r => r.id === lead_id || r.fields['lead_id'] === lead_id);
         if (!record) {
             return res.status(404).json({
