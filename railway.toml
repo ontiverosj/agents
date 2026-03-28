@@ -1,15 +1,8 @@
-# Railway Configuration
-
-## Node.js Deployment
-
 [build]
-  command = "npm install"
+nixpacks.toml = false
 
 [deploy]
-  provider = "node"
-
-[run]
-  command = "npm start"
+startCommand = "npm start"
 
 [env]
-  NODE_ENV = "production"
+NODE_ENV = "production"
