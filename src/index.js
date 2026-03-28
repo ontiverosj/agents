@@ -1,90 +1,37 @@
 const express = require('express');
-const axios = require('axios');
-const app = express();
-const port = 3000;
+const router = express.Router();
+const airtable = require('airtable');
 
-const AIRTABLE_API_KEY = process.env.AIRTABLE_API_KEY;
-const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
+const base = airtable.base('YOUR_BASE_ID');
 
-app.use(express.json());
-
-const agents = ['scribe', 'sentry', 'sage', 'scholar'];
-
-async function airtableRequest(table, method = 'GET', data = null) {
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(table)}`;
-    const response = await axios({
-        method,
-        url,
-        headers: {
-            Authorization: `Bearer ${AIRTABLE_API_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        data: data || undefined
-    });
-    return response.data;
-}
-
-app.get('/', (req, res) => {
-    res.json({
-        service: 'Acquisition Agents',
-        agents: ['scout', ...agents],
-        status: 'running'
-    });
-});
-
-app.post('/agent/scout', async (req, res) => {
-    const { lead_id } = req.body;
+// Single GET / endpoint to fetch leads
+router.get('/', async (req, res) => {
     try {
-        const result = await airtableRequest('Acquisition Leads');
-        const record = result.records.find(r => r.id === lead_id || r.fields['lead_id'] === lead_id);
-        if (!record) {
-            return res.status(404).json({
-                agent: 'scout',
-                lead_id,
-                status: 'error',
-                error: 'Lead not found',
-                timestamp: new Date().toISOString()
-            });
-        }
-        res.json({
-            agent: 'scout',
-            lead_id,
-            business_name: record.fields['business_name'] || null,
-            status: 'ok',
-            timestamp: new Date().toISOString()
-        });
-    } catch (err) {
-        res.status(500).json({
-            agent: 'scout',
-            lead_id,
-            status: 'error',
-            error: err.message,
-            timestamp: new Date().toISOString()
-        });
+        const records = await base('Leads').select().all();
+        const leads = records.map(record => ({
+            businessName: record.get('Business Name'),
+            leadID: record.get('Lead ID'),
+            industry: record.get('Industry'),
+            ownerName: record.get('Owner Name'),
+            email: record.get('Email'),
+            phone: record.get('Phone'),
+            address: record.get('Address'),
+            website: record.get('Website'),
+            yearsInBusiness: record.get('Years in Business'),
+            employeeCount: record.get('Employee Count'),
+            estimatedRevenue: record.get('Estimated Revenue'),
+            leadSource: record.get('Lead Source'),
+            dateAdded: record.get('Date Added'),
+            leadStatus: record.get('Lead Status'),
+            notes: record.get('Notes'),
+            priority: record.get('Priority'),
+            leadQualityScore: record.get('Lead Quality Score'),
+        }));
+        res.status(200).json(leads);
+    } catch (error) {
+        console.error('Error fetching leads:', error);
+        res.status(500).json({ error: 'Failed to fetch leads' });
     }
 });
 
-app.get('/', (req, res) => {
-    res.json({
-        message: 'Welcome to the Agents API',
-        availableAgents: agents.map(agent => ({
-            name: agent.name,
-            endpoint: `/${agent.name.toLowerCase()}`,
-            method: 'POST'
-        }))
-    });
-});
-
-agents.forEach(agent => {
-    app.post(`/${agent}`, (req, res) => {
-        res.json({
-            agent: agent,
-            status: 'ok',
-            timestamp: new Date().toISOString()
-        });
-    });
-});
-
-app.listen(port, () => {
-    console.log(`Acquisition Agents service running on port ${port}`);
-});
+module.exports = router;
