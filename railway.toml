@@ -1,0 +1,7 @@
+# Railway.toml
+deploy = [
+  {  
+    type = "node",  
+    version = "16"  
+  }
+]
