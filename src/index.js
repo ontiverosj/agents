@@ -12,6 +12,17 @@ const agents = [
     { name: 'Scholar' }
 ];
 
+app.get('/', (req, res) => {
+    res.json({
+        message: 'Welcome to the Agents API',
+        availableAgents: agents.map(agent => ({
+            name: agent.name,
+            endpoint: `/${agent.name.toLowerCase()}`,
+            method: 'POST'
+        }))
+    });
+});
+
 agents.forEach(agent => {
     app.post(`/${agent.name.toLowerCase()}`, (req, res) => {
         const response = {
