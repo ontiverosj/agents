@@ -1,7 +1,15 @@
-# Railway.toml
-deploy = [
-  {  
-    type = "node",  
-    version = "16"  
-  }
-]
+# Railway Configuration
+
+## Node.js Deployment
+
+[build]
+  command = "npm install"
+
+[deploy]
+  provider = "node"
+
+[run]
+  command = "npm start"
+
+[env]
+  NODE_ENV = "production"
