@@ -64,6 +64,17 @@ app.post('/agent/scout', async (req, res) => {
     }
 });
 
+app.get('/', (req, res) => {
+    res.json({
+        message: 'Welcome to the Agents API',
+        availableAgents: agents.map(agent => ({
+            name: agent.name,
+            endpoint: `/${agent.name.toLowerCase()}`,
+            method: 'POST'
+        }))
+    });
+});
+
 agents.forEach(agent => {
     app.post(`/${agent}`, (req, res) => {
         res.json({
