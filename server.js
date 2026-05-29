@@ -1,8 +1,31 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const { getLeadById, getAllLeads } = require('./src/airtable');
 const { computeMetrics } = require('./src/metrics');
 const { renderDashboard } = require('./src/dashboard');
+const { computePipelineMetrics } = require('./src/pipelineMetrics');
+const { renderPipelineDashboard } = require('./src/pipelineDashboard');
+
+// Load the latest sourcing-agent output. Prefers PROSPECTS_FILE / data/prospects.json
+// (the live run), falling back to the bundled sample so the dashboard always renders.
+function loadProspects() {
+  const candidates = [
+    process.env.PROSPECTS_FILE,
+    path.join(__dirname, 'data', 'prospects.json'),
+    path.join(__dirname, 'data', 'prospects.sample.json'),
+  ].filter(Boolean);
+
+  for (const file of candidates) {
+    if (file && fs.existsSync(file)) {
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const isSample = file.endsWith('prospects.sample.json');
+      return { data, file, isSample };
+    }
+  }
+  return { data: { prospects: [] }, file: null, isSample: false };
+}
 
 const app = express();
 app.use(express.json());
@@ -14,8 +37,26 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Agent API is running' });
 });
 
-// GET /dashboard - Executive dashboard for the leads/acquisition pipeline
-app.get('/dashboard', async (req, res) => {
+// GET /dashboard - Acquisition pipeline dashboard (sourcing-agent prospects.json)
+app.get('/dashboard', (req, res) => {
+  try {
+    const { data, file, isSample } = loadProspects();
+    let warning = null;
+    if (!file) {
+      warning = 'No prospects file found. Run lead_sourcing_agent.py to produce data/prospects.json.';
+    } else if (isSample) {
+      warning = 'Showing bundled sample data (data/prospects.sample.json). Set PROSPECTS_FILE or drop a live run at data/prospects.json.';
+    }
+    const metrics = computePipelineMetrics(data);
+    res.status(200).send(renderPipelineDashboard(metrics, { warning }));
+  } catch (error) {
+    console.error('Error rendering pipeline dashboard:', error);
+    res.status(500).send(`<pre>Failed to render dashboard: ${error.message}</pre>`);
+  }
+});
+
+// GET /dashboard/leads - Airtable "Acquisition Leads" view (CRM-style snapshot)
+app.get('/dashboard/leads', async (req, res) => {
   let leads = [];
   let warning = null;
 

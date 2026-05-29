@@ -30,3 +30,9 @@ dist/
 
 # macOS files
 .DS_Store
+
+# Live pipeline output may contain prospect PII — keep it local.
+# The synthetic data/prospects.sample.json is committed on purpose.
+data/prospects.json
+prospects.json
+suppression.txt
