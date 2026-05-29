@@ -99,7 +99,12 @@ function renderPipelineDashboard(metrics, options = {}) {
       <h1>Acquisition Pipeline</h1>
       <div class="meta">Everflow Acquisitions${runMeta.buyBoxVersion ? ` · Buy Box v${escapeHtml(runMeta.buyBoxVersion)}` : ''}${runMeta.track ? ` · ${escapeHtml(runMeta.track)}` : ''}</div>
     </div>
-    <div class="meta">${source} &nbsp;·&nbsp; <a class="refresh" href="">Refresh</a></div>
+    <div class="meta">
+      <a class="refresh" href="/dashboard">Pipeline</a> ·
+      <a class="refresh" href="/dashboard/leads">Leads</a> ·
+      <a class="refresh" href="/dashboard/agents">Agents</a>
+      &nbsp;|&nbsp; ${source} · <a class="refresh" href="">Refresh</a>
+    </div>
   </header>
   <div class="wrap">
     ${warning ? `<div class="banner warning">${escapeHtml(warning)}</div>` : ''}

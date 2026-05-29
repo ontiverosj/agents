@@ -7,6 +7,20 @@ const { computeMetrics } = require('./src/metrics');
 const { renderDashboard } = require('./src/dashboard');
 const { computePipelineMetrics } = require('./src/pipelineMetrics');
 const { renderPipelineDashboard } = require('./src/pipelineDashboard');
+const { parseFrontmatter } = require('./src/frontmatter');
+const { buildRegistry } = require('./src/agentsRegistry');
+const { renderAgentsDashboard } = require('./src/agentsDashboard');
+
+// Read Claude subagent definitions from .claude/agents/*.md (frontmatter only).
+function loadClaudeAgents() {
+  const dir = path.join(__dirname, '.claude', 'agents');
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md')
+    .map((f) => parseFrontmatter(fs.readFileSync(path.join(dir, f), 'utf8')).data)
+    .filter((d) => d && d.name);
+}
 
 // Load the latest sourcing-agent output. Prefers PROSPECTS_FILE / data/prospects.json
 // (the live run), falling back to the bundled sample so the dashboard always renders.
@@ -52,6 +66,17 @@ app.get('/dashboard', (req, res) => {
   } catch (error) {
     console.error('Error rendering pipeline dashboard:', error);
     res.status(500).send(`<pre>Failed to render dashboard: ${error.message}</pre>`);
+  }
+});
+
+// GET /dashboard/agents - Fleet view of every agent (Claude subagents + pipeline)
+app.get('/dashboard/agents', (req, res) => {
+  try {
+    const registry = buildRegistry(loadClaudeAgents());
+    res.status(200).send(renderAgentsDashboard(registry));
+  } catch (error) {
+    console.error('Error rendering agents dashboard:', error);
+    res.status(500).send(`<pre>Failed to render agents dashboard: ${error.message}</pre>`);
   }
 });
 
