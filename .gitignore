@@ -36,3 +36,7 @@ dist/
 data/prospects.json
 prospects.json
 suppression.txt
+
+# Python bytecode
+__pycache__/
+*.pyc
