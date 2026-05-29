@@ -1,11 +1,11 @@
 {
   "run_meta": {
-    "generated": "2026-05-29T19:30:42",
-    "buy_box_version": "2.0",
+    "generated": "2026-05-29T20:17:00",
+    "buy_box_version": "2.1",
     "track": "mixed",
     "industry": "mixed (sample)",
-    "returned": 10,
-    "to_enrich": 6,
+    "returned": 13,
+    "to_enrich": 8,
     "pushed_to_clay": 0,
     "suppressed_skipped": false,
     "data_honesty": "Revenue/owner-age/tenure/recurring%/succession signals are NOT filtered at Apollo. Survivors are scored on confirmed signals only and routed to Clay; unknowns are listed per prospect. No data fabricated."
@@ -59,6 +59,83 @@
         ],
         "signals_needing_enrichment": [
           "retirement_posts",
+          "recent_mgmt_hire",
+          "owner_55_60",
+          "tenure_20_25",
+          "no_geo_expansion_5yr",
+          "no_active_hiring",
+          "legacy_headline",
+          "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
+          "owner_50_55",
+          "tenure_15_20",
+          "limited_social_presence",
+          "family_owned_desc",
+          "tertiary_market",
+          "active_hiring_spree",
+          "pe_style_hires",
+          "recent_rebrand",
+          "owner_under_50",
+          "tenure_under_15",
+          "recently_raised_capital"
+        ],
+        "disqualifiers_failed": [],
+        "criteria_unknown_at_source": [],
+        "track2_remote_manageable_status": "n/a"
+      },
+      "track": "track1"
+    },
+    {
+      "company": "Heartland Colo",
+      "domain": "heartlandcolo.com",
+      "location": "Omaha, NE",
+      "in_united_states": true,
+      "employees": 14,
+      "founded_year": 2002,
+      "estimated_revenue": 2400000,
+      "industry": "Data Centers / Colocation",
+      "owner_name": "Earl T.",
+      "owner_title": "Owner",
+      "owner_linkedin": "https://linkedin.com/in/earlt",
+      "known_succession_signals": {
+        "owner_60_plus": true,
+        "tenure_25_plus": true,
+        "legacy_hardware_modernizable": true,
+        "no_family_leadership": true
+      },
+      "_raw_keywords": [
+        "colocation",
+        "data center",
+        "legacy infrastructure",
+        "Regional colo + managed hosting; aging on-prem hardware"
+      ],
+      "_apollo_org_id": "o11",
+      "evaluation": {
+        "verdict": "enrich",
+        "recommended_next_step": "Needs enrichment before qualification",
+        "partial_priority": 9,
+        "partial_raw_signal": 11,
+        "signals_confirmed": [
+          {
+            "signal": "owner_60_plus",
+            "pts": 3
+          },
+          {
+            "signal": "tenure_25_plus",
+            "pts": 3
+          },
+          {
+            "signal": "no_family_leadership",
+            "pts": 3
+          },
+          {
+            "signal": "legacy_hardware_modernizable",
+            "pts": 2
+          }
+        ],
+        "signals_needing_enrichment": [
+          "retirement_posts",
+          "reduced_posting_12mo",
           "recent_mgmt_hire",
           "owner_55_60",
           "tenure_20_25",
@@ -140,6 +217,7 @@
           "owner_55_60",
           "no_geo_expansion_5yr",
           "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
@@ -209,6 +287,7 @@
           "no_geo_expansion_5yr",
           "no_active_hiring",
           "legacy_headline",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
@@ -223,6 +302,76 @@
         ],
         "disqualifiers_failed": [],
         "criteria_unknown_at_source": [],
+        "track2_remote_manageable_status": "n/a"
+      },
+      "track": "track1"
+    },
+    {
+      "company": "EdgeRack Hosting",
+      "domain": "edgerack.com",
+      "location": "Reno, NV",
+      "in_united_states": true,
+      "employees": 9,
+      "founded_year": 2006,
+      "estimated_revenue": null,
+      "industry": "Data Centers / Colocation",
+      "owner_name": "Sofia L.",
+      "owner_title": "Founder",
+      "owner_linkedin": null,
+      "known_succession_signals": {
+        "owner_55_60": true,
+        "legacy_hardware_modernizable": true
+      },
+      "_raw_keywords": [
+        "managed hosting",
+        "dedicated servers",
+        "private cloud",
+        "Dedicated server + colo provider"
+      ],
+      "_apollo_org_id": "o12",
+      "evaluation": {
+        "verdict": "enrich",
+        "recommended_next_step": "Needs enrichment before qualification",
+        "partial_priority": 6,
+        "partial_raw_signal": 4,
+        "signals_confirmed": [
+          {
+            "signal": "owner_55_60",
+            "pts": 2
+          },
+          {
+            "signal": "legacy_hardware_modernizable",
+            "pts": 2
+          }
+        ],
+        "signals_needing_enrichment": [
+          "owner_60_plus",
+          "tenure_25_plus",
+          "no_family_leadership",
+          "retirement_posts",
+          "reduced_posting_12mo",
+          "recent_mgmt_hire",
+          "tenure_20_25",
+          "no_geo_expansion_5yr",
+          "no_active_hiring",
+          "legacy_headline",
+          "solo_owner_no_partner",
+          "owner_50_55",
+          "tenure_15_20",
+          "limited_social_presence",
+          "family_owned_desc",
+          "tertiary_market",
+          "active_hiring_spree",
+          "pe_style_hires",
+          "recent_rebrand",
+          "owner_under_50",
+          "tenure_under_15",
+          "recently_raised_capital"
+        ],
+        "disqualifiers_failed": [],
+        "criteria_unknown_at_source": [
+          "revenue (Apollo sparse for sub-$3M private firms)"
+        ],
         "track2_remote_manageable_status": "n/a"
       },
       "track": "track1"
@@ -264,6 +413,7 @@
           "no_active_hiring",
           "legacy_headline",
           "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
@@ -336,6 +486,7 @@
           "no_active_hiring",
           "legacy_headline",
           "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
@@ -391,6 +542,7 @@
           "no_active_hiring",
           "legacy_headline",
           "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
@@ -449,6 +601,7 @@
           "no_active_hiring",
           "legacy_headline",
           "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
@@ -508,6 +661,7 @@
           "no_active_hiring",
           "legacy_headline",
           "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
@@ -522,6 +676,65 @@
         ],
         "disqualifiers_failed": [
           "Exclusion keyword matched: 'private equity'"
+        ],
+        "criteria_unknown_at_source": [],
+        "track2_remote_manageable_status": "n/a"
+      },
+      "track": "track1"
+    },
+    {
+      "company": "CloudNova DC",
+      "domain": "cloudnova.com",
+      "location": "Austin, TX",
+      "in_united_states": true,
+      "employees": 12,
+      "founded_year": 2018,
+      "estimated_revenue": 1600000,
+      "industry": "Data Centers / Colocation",
+      "owner_name": "Vik N.",
+      "owner_title": "CEO",
+      "owner_linkedin": null,
+      "known_succession_signals": {},
+      "_raw_keywords": [
+        "data center",
+        "private cloud",
+        "Cloud + colo startup"
+      ],
+      "_apollo_org_id": "o13",
+      "evaluation": {
+        "verdict": "disqualify",
+        "recommended_next_step": "Disqualify \u2014 do not enrich",
+        "partial_priority": 0,
+        "partial_raw_signal": 0,
+        "signals_confirmed": [],
+        "signals_needing_enrichment": [
+          "owner_60_plus",
+          "tenure_25_plus",
+          "no_family_leadership",
+          "retirement_posts",
+          "reduced_posting_12mo",
+          "recent_mgmt_hire",
+          "owner_55_60",
+          "tenure_20_25",
+          "no_geo_expansion_5yr",
+          "no_active_hiring",
+          "legacy_headline",
+          "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
+          "owner_50_55",
+          "tenure_15_20",
+          "limited_social_presence",
+          "family_owned_desc",
+          "tertiary_market",
+          "active_hiring_spree",
+          "pe_style_hires",
+          "recent_rebrand",
+          "owner_under_50",
+          "tenure_under_15",
+          "recently_raised_capital"
+        ],
+        "disqualifiers_failed": [
+          "Founded 2018 (after 2010)"
         ],
         "criteria_unknown_at_source": [],
         "track2_remote_manageable_status": "n/a"
@@ -566,6 +779,7 @@
           "no_active_hiring",
           "legacy_headline",
           "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
@@ -624,6 +838,7 @@
           "no_active_hiring",
           "legacy_headline",
           "solo_owner_no_partner",
+          "legacy_hardware_modernizable",
           "owner_50_55",
           "tenure_15_20",
           "limited_social_presence",
