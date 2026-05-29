@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
-const { getLeadById } = require('./airtable');
+const { getLeadById, getAllLeads } = require('./src/airtable');
+const { computeMetrics } = require('./src/metrics');
+const { renderDashboard } = require('./src/dashboard');
 
 const app = express();
 app.use(express.json());
@@ -10,6 +12,26 @@ const PORT = process.env.PORT || 3000;
 // Health check
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Agent API is running' });
+});
+
+// GET /dashboard - Executive dashboard for the leads/acquisition pipeline
+app.get('/dashboard', async (req, res) => {
+  let leads = [];
+  let warning = null;
+
+  if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+    warning = 'Airtable is not configured (set AIRTABLE_API_KEY and AIRTABLE_BASE_ID). Showing empty pipeline.';
+  } else {
+    try {
+      leads = await getAllLeads();
+    } catch (error) {
+      console.error('Error loading leads for dashboard:', error);
+      warning = `Could not load leads from Airtable: ${error.message}. Showing empty pipeline.`;
+    }
+  }
+
+  const metrics = computeMetrics(leads);
+  res.status(200).send(renderDashboard(metrics, { warning }));
 });
 
 // POST /agent/scout - Fetch lead by lead_id
