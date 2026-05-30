@@ -10,6 +10,8 @@ const { renderPipelineDashboard } = require('./src/pipelineDashboard');
 const { parseFrontmatter } = require('./src/frontmatter');
 const { buildRegistry } = require('./src/agentsRegistry');
 const { renderAgentsDashboard } = require('./src/agentsDashboard');
+const { listAgents, chatWithAgent } = require('./src/agentChat');
+const { renderChatDashboard } = require('./src/chatDashboard');
 
 // Read Claude subagent definitions from .claude/agents/*.md (frontmatter only).
 function loadClaudeAgents() {
@@ -77,6 +79,47 @@ app.get('/dashboard/agents', (req, res) => {
   } catch (error) {
     console.error('Error rendering agents dashboard:', error);
     res.status(500).send(`<pre>Failed to render agents dashboard: ${error.message}</pre>`);
+  }
+});
+
+// GET /dashboard/chat - Live chat UI for talking to the Claude subagents
+app.get('/dashboard/chat', (req, res) => {
+  try {
+    const agents = listAgents();
+    const warning = process.env.ANTHROPIC_API_KEY
+      ? null
+      : 'ANTHROPIC_API_KEY is not set in this environment — the agent will reply with a setup error until a key is configured.';
+    res.status(200).send(renderChatDashboard(agents, { warning }));
+  } catch (error) {
+    console.error('Error rendering chat dashboard:', error);
+    res.status(500).send(`<pre>Failed to render chat: ${error.message}</pre>`);
+  }
+});
+
+// POST /agent/chat - Send a conversation to a Claude subagent, return its reply
+app.post('/agent/chat', async (req, res) => {
+  const { agent, messages } = req.body || {};
+  try {
+    const result = await chatWithAgent({ agentName: agent, messages });
+    return res.status(200).json({ ok: true, ...result });
+  } catch (error) {
+    // Map known failure modes to friendly, actionable messages.
+    const map = {
+      NO_API_KEY: 'Chat is not configured: set ANTHROPIC_API_KEY on the server.',
+      UNKNOWN_AGENT: `Unknown agent "${agent}".`,
+      BAD_MESSAGES: 'The conversation was malformed (it must end with a user message).',
+    };
+    if (map[error.code]) {
+      return res.status(400).json({ ok: false, error: map[error.code] });
+    }
+    if (error.constructor && error.constructor.name === 'AuthenticationError') {
+      return res.status(502).json({ ok: false, error: 'Claude API rejected the API key (authentication error).' });
+    }
+    if (error.constructor && error.constructor.name === 'APIConnectionError') {
+      return res.status(502).json({ ok: false, error: 'Could not reach the Claude API (network error in this environment).' });
+    }
+    console.error('Error in /agent/chat:', error);
+    return res.status(500).json({ ok: false, error: error.message || 'Internal error' });
   }
 });
 

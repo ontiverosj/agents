@@ -127,6 +127,7 @@ function renderAgentsDashboard(registry, options = {}) {
       <a href="/dashboard">Pipeline</a>
       <a href="/dashboard/leads">Leads (CRM)</a>
       <a href="/dashboard/agents" class="active">Agents</a>
+      <a href="/dashboard/chat">Chat</a>
     </nav>
   </header>
   <div class="wrap">

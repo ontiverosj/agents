@@ -102,7 +102,8 @@ function renderPipelineDashboard(metrics, options = {}) {
     <div class="meta">
       <a class="refresh" href="/dashboard">Pipeline</a> ·
       <a class="refresh" href="/dashboard/leads">Leads</a> ·
-      <a class="refresh" href="/dashboard/agents">Agents</a>
+      <a class="refresh" href="/dashboard/agents">Agents</a> ·
+      <a class="refresh" href="/dashboard/chat">Chat</a>
       &nbsp;|&nbsp; ${source} · <a class="refresh" href="">Refresh</a>
     </div>
   </header>
