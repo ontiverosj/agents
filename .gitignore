@@ -30,3 +30,6 @@ dist/
 
 # macOS files
 .DS_Store
+
+# app data (client records)
+data/
