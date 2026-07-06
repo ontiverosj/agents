@@ -29,6 +29,8 @@ const RDAP_BASES = {
   shop: 'https://rdap.gmoregistry.net/rdap/domain/',
 };
 const MARKER_URL = () => process.env.MARKER_API_URL || 'https://markerapi.com/api/v2/trademarks';
+const RAPID_URL = () => process.env.USPTO_RAPIDAPI_URL || 'https://uspto-trademark.p.rapidapi.com';
+const RAPID_HOST = 'uspto-trademark.p.rapidapi.com';
 const TLDS = Object.keys(RDAP_BASES);
 const TIMEOUT_MS = 8000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -79,13 +81,48 @@ async function checkDomains(handle) {
   return results;
 }
 
-// ---------- Trademarks (Marker API over the USPTO database) ----------
+// ---------- Trademarks (USPTO database via a search provider) ----------
+//
+// Two providers, picked by which credentials are configured:
+//   - "rapidapi": the USPTO Trademark API on RapidAPI (recommended;
+//     USPTO_RAPIDAPI_KEY). Free tier for light use, paid tiers above.
+//   - "marker": markerapi.com (MARKER_API_USERNAME/PASSWORD). Kept for
+//     compatibility, but as of mid-2026 the service appears defunct —
+//     its API URLs redirect to a dead site.
 
-function markerConfigured() {
-  return Boolean(process.env.MARKER_API_USERNAME && process.env.MARKER_API_PASSWORD);
+function trademarkProvider() {
+  if (process.env.USPTO_RAPIDAPI_KEY) return 'rapidapi';
+  if (process.env.MARKER_API_USERNAME && process.env.MARKER_API_PASSWORD) return 'marker';
+  return null;
 }
 
-async function searchTrademarks(name) {
+function markerConfigured() {
+  return trademarkProvider() !== null;
+}
+
+async function searchTrademarksRapid(name) {
+  const url = `${RAPID_URL()}/v1/trademarkSearch/${encodeURIComponent(name)}/active`;
+  const res = await fetchWithTimeout(url, {
+    headers: {
+      Accept: 'application/json',
+      'x-rapidapi-key': process.env.USPTO_RAPIDAPI_KEY,
+      'x-rapidapi-host': process.env.USPTO_RAPIDAPI_URL ? new URL(RAPID_URL()).host : RAPID_HOST,
+    },
+  });
+  if (!res.ok) throw new Error(`Trademark search HTTP ${res.status}`);
+  const data = await res.json();
+  const items = Array.isArray(data.items) ? data.items : [];
+  return items.slice(0, 10).map((t) => ({
+    wordmark: t.keyword || t.wordmark || '',
+    serialNumber: t.serial_number || '',
+    status: t.status_label || t.status_code || '',
+    description: (t.description || '').slice(0, 160),
+    owner: (Array.isArray(t.owners) && t.owners[0] && (t.owners[0].name || t.owners[0].owner_label)) || '',
+    registrationDate: t.registration_date || '',
+  }));
+}
+
+async function searchTrademarksMarker(name) {
   const user = encodeURIComponent(process.env.MARKER_API_USERNAME);
   const pass = encodeURIComponent(process.env.MARKER_API_PASSWORD);
   const term = encodeURIComponent(name);
@@ -100,8 +137,14 @@ async function searchTrademarks(name) {
     status: t.status || '',
     description: (t.description || '').slice(0, 160),
     owner: t.owner || '',
-    registrationDate: t.registrationdate || t.registrationDate || '',
+    registrationDate: t.registrationdate || t.regdate || '',
   }));
+}
+
+async function searchTrademarks(name) {
+  return trademarkProvider() === 'rapidapi'
+    ? searchTrademarksRapid(name)
+    : searchTrademarksMarker(name);
 }
 
 function assessTrademarkRisk(name, marks) {
