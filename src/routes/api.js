@@ -7,16 +7,62 @@ const { generateIdentity, listStyles } = require('../lib/identity');
 const { buildBrandPackage } = require('../lib/packageBuilder');
 const { listCategories } = require('../lib/knowledge');
 const semrush = require('../lib/semrush');
+const semrushMcp = require('../lib/semrushMcp');
 const store = require('../lib/store');
 
 // Reference data for building forms
 router.get('/meta', (req, res) => {
+  const s = semrush.status();
   res.json({
     categories: listCategories(),
     tones: listTones(),
     styles: listStyles(),
-    semrushEnabled: semrush.isEnabled(),
+    semrush: s,
+    semrushEnabled: Boolean(s.mode && s.ready), // legacy field
   });
+});
+
+// ---------- Semrush connection management ----------
+
+router.get('/semrush/status', (req, res) => {
+  res.json(semrush.status());
+});
+
+// Starts the OAuth flow against Semrush's MCP server (MCP mode only).
+// Redirects the browser to Semrush's authorization page.
+router.get('/semrush/connect', async (req, res) => {
+  if (semrush.mode() !== 'mcp') {
+    return res.status(400).send('Semrush MCP mode is not active. Set SEMRUSH_MODE=mcp in .env (and remove SEMRUSH_API_KEY, which takes precedence).');
+  }
+  try {
+    const redirectUrl = process.env.SEMRUSH_MCP_REDIRECT_URL
+      || `${req.protocol}://${req.get('host')}/api/semrush/callback`;
+    const result = await semrushMcp.beginAuth(redirectUrl);
+    if (result.alreadyConnected) return res.redirect('/?semrush=connected');
+    res.redirect(result.authUrl);
+  } catch (err) {
+    console.error('Semrush connect failed:', err.message);
+    res.status(502).send(`Could not start Semrush authorization: ${err.message}`);
+  }
+});
+
+// OAuth callback: exchanges the authorization code for tokens.
+router.get('/semrush/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error) return res.redirect(`/?semrush=error&reason=${encodeURIComponent(String(error))}`);
+  if (!code) return res.status(400).send('Missing authorization code.');
+  try {
+    await semrushMcp.finishAuth(String(code));
+    res.redirect('/?semrush=connected');
+  } catch (err) {
+    console.error('Semrush token exchange failed:', err.message);
+    res.redirect(`/?semrush=error&reason=${encodeURIComponent(err.message)}`);
+  }
+});
+
+router.post('/semrush/disconnect', (req, res) => {
+  semrushMcp.disconnect();
+  res.json({ disconnected: true });
 });
 
 // 1. Product intake & market analysis

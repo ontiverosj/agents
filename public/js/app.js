@@ -74,6 +74,7 @@ function markDone(step) {
 async function loadMeta() {
   try {
     const meta = await api('/meta');
+    state.semrush = meta.semrush || { mode: null, ready: false };
     state.semrushEnabled = Boolean(meta.semrushEnabled);
     const catOptions = meta.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
     $('#categorySelect').insertAdjacentHTML('beforeend', catOptions);
@@ -156,12 +157,21 @@ function fmtNum(n) {
 }
 
 function searchDataCard(sd) {
-  if (!sd) {
+  if (!sd || sd.needsConnect) {
+    if (state.semrush?.mode === 'mcp' && !state.semrush.ready) {
+      return `<div class="card full semrush-card off">
+        <h3>🔎 Live search demand</h3>
+        <p class="lead">Semrush MCP mode is on, but your Semrush account isn't connected yet.
+        Sign in once and BrandForge will pull real U.S. search volume, trends, and keywords on every analysis.</p>
+        <a class="btn primary" href="/api/semrush/connect" style="display:inline-block;margin-top:10px;text-decoration:none">Connect Semrush account →</a>
+      </div>`;
+    }
     if (state.semrushEnabled) return '';
     return `<div class="card full semrush-card off">
       <h3>🔎 Live search demand</h3>
       <p class="lead">Connect Semrush to see real U.S. search volume, trends, and the keywords people actually use.
-      Add <code>SEMRUSH_API_KEY</code> to your <code>.env</code> file and restart — see the README for setup.</p>
+      Two options in <code>.env</code>: <code>SEMRUSH_API_KEY</code> (Analytics API) or <code>SEMRUSH_MODE=mcp</code>
+      (sign in with your Semrush account) — see the README for setup.</p>
     </div>`;
   }
   if (!sd.matched) {
@@ -644,3 +654,13 @@ function renderPackage() {
 window.goTo = goTo;
 loadMeta();
 loadClients();
+
+// Post-OAuth landing (redirected back from /api/semrush/callback)
+const params = new URLSearchParams(location.search);
+if (params.get('semrush') === 'connected') {
+  toast('Semrush connected ✓ — analyses now include live search data');
+  history.replaceState(null, '', '/');
+} else if (params.get('semrush') === 'error') {
+  toast(`Semrush connection failed: ${params.get('reason') || 'unknown error'}`);
+  history.replaceState(null, '', '/');
+}

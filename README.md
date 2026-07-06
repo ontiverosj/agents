@@ -25,24 +25,31 @@ Requires Node 18+. No API keys are required — the analysis and generation engi
 
 ### Optional: live search data via Semrush
 
-Set a Semrush API key to enrich the app with real search-demand data:
+BrandForge can enrich analyses with real search-demand data through **two interchangeable backends** — both return identical data; pick whichever your Semrush plan supports:
+
+| | Backend | Setup | Plan requirement |
+|---|---|---|---|
+| **A** | Analytics REST API | `SEMRUSH_API_KEY=...` in `.env` | Plan with API units (usually the separate API add-on) |
+| **B** | Semrush MCP server | `SEMRUSH_MODE=mcp` in `.env`, then click **Connect Semrush account** in the Insights step and sign in | [MCP access](https://www.semrush.com/mcp-access): included with Semrush One Starter/Pro+ and SEO Classic Pro/Guru (50K units) |
 
 ```bash
-cp .env.example .env   # then paste your key into SEMRUSH_API_KEY
+cp .env.example .env   # fill in option A or B
 npm start
 ```
 
-What it adds:
+**How MCP mode works:** the app is a full MCP client against Semrush's official endpoint (`https://mcp.semrush.com/v2/mcp`, streamable HTTP). Authentication is OAuth 2.0 with dynamic client registration and PKCE — `/api/semrush/connect` starts the flow, `/api/semrush/callback` completes it, and tokens persist in `data/semrush-oauth.json` (gitignored). Alternatively set `SEMRUSH_MCP_API_KEY` to authenticate with an `Authorization: Apikey` header and skip OAuth entirely. `POST /api/semrush/disconnect` clears stored credentials; `GET /api/semrush/status` reports the active mode. When deploying behind a domain or proxy, set `SEMRUSH_MCP_REDIRECT_URL` to your public callback URL.
+
+What it adds (either backend):
 
 - **Insights step** — a "Live search demand" card: monthly U.S. search volume, average CPC, paid-competition density, a 12-month interest trend, the top related keywords by volume, and the questions people search (ready-made content ideas).
 - **Brand package** — an "SEO keywords to target" section with keywords to work into the site/listings and questions to answer in content.
 
 Notes:
 
-- Keys come from Semrush's [Analytics API](https://www.semrush.com/api-documentation/) (requires a plan with API units). Every response line consumes units, so BrandForge caches responses in-memory for 24 hours.
+- Both backends consume Semrush API units per response line, so BrandForge caches responses in-memory for 24 hours.
 - Long product descriptions are automatically distilled to a searchable keyword ("Handmade soy candles with nostalgic scents" → "soy candles"), falling back to shorter phrases until one has measurable volume.
-- Without a key (or if Semrush is down/out of units) the app runs exactly as before — enrichment is additive and never blocks analysis.
-- `SEMRUSH_DATABASE` can override the regional database (default `us`).
+- Without either backend configured (or if Semrush is down/out of units) the app runs exactly as before — enrichment is additive and never blocks analysis.
+- `SEMRUSH_DATABASE` can override the regional database (default `us`); see `.env.example` for all overrides.
 
 ## API
 
@@ -67,7 +74,9 @@ src/
     knowledge.js      U.S. market knowledge base (12 product categories)
     analyzer.js       Product intake → opportunity analysis
     names.js          Brand name, tagline & handle generation
-    semrush.js        Semrush Analytics API client (optional live search data)
+    searchCommon.js   Shared normalization for search-demand data
+    semrush.js        Semrush REST client + api/mcp mode dispatcher
+    semrushMcp.js     Semrush MCP client (OAuth + Apikey auth)
     identity.js       Palettes, font pairings, original SVG logo generation
     packageBuilder.js Brand package assembly (content ideas, marketing plan)
     store.js          JSON-file persistence for clients
