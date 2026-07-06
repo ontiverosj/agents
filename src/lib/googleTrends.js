@@ -41,19 +41,45 @@ function storeCookies(res) {
   }
 }
 
-async function gfetch(url) {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Follow redirects manually: fetch's auto-follow drops Set-Cookie headers
+// from intermediate responses, and Google often sets the NID cookie on the
+// redirect hop.
+async function gfetch(url, hops = 0) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const headers = { 'User-Agent': UA, Accept: '*/*' };
     const cookies = cookieHeader();
     if (cookies) headers.Cookie = cookies;
-    const res = await fetch(url, { headers, signal: controller.signal, redirect: 'follow' });
+    const res = await fetch(url, { headers, signal: controller.signal, redirect: 'manual' });
     storeCookies(res);
+    if ([301, 302, 303, 307, 308].includes(res.status) && hops < 5) {
+      const location = res.headers.get('location');
+      if (location) return gfetch(new URL(location, url).toString(), hops + 1);
+    }
     return res;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Trends API GET with rate-limit handling: a 429 usually refreshes the
+// cookie itself; back off and retry, re-seeding a fresh cookie on the
+// final attempt.
+async function trendsGet(url, label) {
+  let res = await gfetch(url);
+  for (let attempt = 1; attempt <= 2 && res.status === 429; attempt++) {
+    await sleep(900 * attempt);
+    if (attempt === 2) {
+      cookieJar.clear();
+      await gfetch(`${TRENDS_BASE()}/trends/explore?geo=${GEO()}`).catch(() => {});
+    }
+    res = await gfetch(url);
+  }
+  if (!res.ok) throw new Error(`Google Trends ${label} HTTP ${res.status}`);
+  return stripPrefix(await res.text());
 }
 
 function stripPrefix(text) {
@@ -75,14 +101,7 @@ async function explore(keyword) {
     property: '',
   };
   const url = `${TRENDS_BASE()}/trends/api/explore?hl=en-US&tz=360&req=${encodeURIComponent(JSON.stringify(req))}`;
-  let res = await gfetch(url);
-  if (res.status === 429) {
-    // First hit often 429s while the cookie settles; the 429 itself
-    // refreshes it. Retry once.
-    res = await gfetch(url);
-  }
-  if (!res.ok) throw new Error(`Google Trends explore HTTP ${res.status}`);
-  const { widgets } = stripPrefix(await res.text());
+  const { widgets } = await trendsGet(url, 'explore');
   return {
     timeseries: widgets.find((w) => w.id === 'TIMESERIES'),
     related: widgets.find((w) => w.id === 'RELATED_QUERIES'),
@@ -92,10 +111,7 @@ async function explore(keyword) {
 async function widgetData(endpoint, widget) {
   const url = `${TRENDS_BASE()}/trends/api/widgetdata/${endpoint}?hl=en-US&tz=360` +
     `&req=${encodeURIComponent(JSON.stringify(widget.request))}&token=${encodeURIComponent(widget.token)}`;
-  let res = await gfetch(url);
-  if (res.status === 429) res = await gfetch(url);
-  if (!res.ok) throw new Error(`Google Trends ${endpoint} HTTP ${res.status}`);
-  return stripPrefix(await res.text());
+  return trendsGet(url, endpoint);
 }
 
 // ---------- Autocomplete ----------
@@ -232,7 +248,14 @@ async function getSearchInsights(productText) {
     }
   } catch (err) {
     console.error('Google Trends enrichment failed:', err.message);
-    return { available: true, matched: false, source: 'google', error: err.message };
+    const friendly = /429/.test(err.message)
+      ? 'Google Trends is rate-limiting requests from this network right now. It usually clears within a few minutes — run the analysis again shortly.'
+      : err.message;
+    const failure = { available: true, matched: false, source: 'google', error: friendly };
+    // Short negative cache: immediate re-runs while rate-limited would only
+    // dig the hole deeper.
+    cache.set(cacheKey, { value: failure, expires: Date.now() + 60 * 1000 });
+    return failure;
   }
   cache.set(cacheKey, { value, expires: Date.now() + CACHE_TTL_MS });
   return value;
