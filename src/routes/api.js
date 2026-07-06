@@ -6,26 +6,35 @@ const { generateBrandConcepts, listTones } = require('../lib/names');
 const { generateIdentity, listStyles } = require('../lib/identity');
 const { buildBrandPackage } = require('../lib/packageBuilder');
 const { listCategories } = require('../lib/knowledge');
+const semrush = require('../lib/semrush');
 const store = require('../lib/store');
 
 // Reference data for building forms
 router.get('/meta', (req, res) => {
-  res.json({ categories: listCategories(), tones: listTones(), styles: listStyles() });
+  res.json({
+    categories: listCategories(),
+    tones: listTones(),
+    styles: listStyles(),
+    semrushEnabled: semrush.isEnabled(),
+  });
 });
 
 // 1. Product intake & market analysis
-router.post('/analyze', (req, res) => {
+router.post('/analyze', async (req, res) => {
   const { product, description, categoryId, goals, tone } = req.body || {};
   if (!product || !String(product).trim()) {
     return res.status(400).json({ error: 'Please provide a product name, niche, or description.' });
   }
-  res.json(analyzeProduct({
+  const analysis = analyzeProduct({
     product: String(product).trim(),
     description: String(description || ''),
     categoryId: String(categoryId || ''),
     goals: String(goals || ''),
     tone: String(tone || ''),
-  }));
+  });
+  // Live search-demand enrichment (null when no SEMRUSH_API_KEY configured)
+  analysis.searchData = await semrush.getSearchInsights(String(product).trim());
+  res.json(analysis);
 });
 
 // 2. Brand concept generation
@@ -91,7 +100,7 @@ router.delete('/clients/:id', (req, res) => {
 });
 
 // 5. Brand package (from a saved client or an ad-hoc spec)
-router.post('/package', (req, res) => {
+router.post('/package', async (req, res) => {
   const body = req.body || {};
   let spec = body;
   if (body.clientId) {
@@ -114,7 +123,10 @@ router.post('/package', (req, res) => {
   if (!spec.product || !String(spec.product).trim()) {
     return res.status(400).json({ error: 'A product is required to build a brand package.' });
   }
-  res.json(buildBrandPackage(spec));
+  const pkg = buildBrandPackage(spec);
+  // Live SEO keyword targets for the marketing section (null when disabled)
+  pkg.searchInsights = await semrush.getSearchInsights(String(spec.product).trim());
+  res.json(pkg);
 });
 
 module.exports = router;

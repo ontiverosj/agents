@@ -253,6 +253,25 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .pkg-swatch .sw-hex { font-size: 11px; color: var(--muted); }
 .bio-block { background: #fbfbfe; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13.5px; margin-bottom: 8px; }
 
+/* ---------- Semrush live search data ---------- */
+.semrush-card { border-left: 4px solid #ff642d; }
+.semrush-card.off { border-left-color: var(--line); }
+.semrush-card code { background: var(--accent-soft); padding: 1px 6px; border-radius: 6px; font-size: 12.5px; }
+.src-tag {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  background: #fff0e9; color: #c74a17; border-radius: 99px; padding: 3px 10px;
+  vertical-align: middle; margin-left: 8px;
+}
+.sd-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-top: 6px; }
+.sd-metric { background: #fbfbfe; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.sd-val { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.5px; }
+.sd-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.kw-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.kw-row:last-child { border-bottom: none; }
+.kw-row .kw-meta { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.kw-vol { color: var(--muted); font-size: 12px; }
+.mini-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--accent); }
+
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
   background: var(--ink); color: #fff; padding: 11px 22px; border-radius: 99px;

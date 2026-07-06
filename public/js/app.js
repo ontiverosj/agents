@@ -74,6 +74,7 @@ function markDone(step) {
 async function loadMeta() {
   try {
     const meta = await api('/meta');
+    state.semrushEnabled = Boolean(meta.semrushEnabled);
     const catOptions = meta.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
     $('#categorySelect').insertAdjacentHTML('beforeend', catOptions);
     $('#cCategory').insertAdjacentHTML('beforeend', catOptions);
@@ -138,6 +139,57 @@ function scoreRing(score) {
   </div>`;
 }
 
+function sparkline(values, color = '#6d5cff') {
+  if (!values || values.length < 2) return '';
+  const w = 160, h = 40, max = Math.max(...values, 0.01);
+  const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - 4 - (v / max) * (h - 8)}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-label="12-month search trend">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function fmtNum(n) {
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+
+function searchDataCard(sd) {
+  if (!sd) {
+    if (state.semrushEnabled) return '';
+    return `<div class="card full semrush-card off">
+      <h3>🔎 Live search demand</h3>
+      <p class="lead">Connect Semrush to see real U.S. search volume, trends, and the keywords people actually use.
+      Add <code>SEMRUSH_API_KEY</code> to your <code>.env</code> file and restart — see the README for setup.</p>
+    </div>`;
+  }
+  if (!sd.matched) {
+    return `<div class="card full semrush-card">
+      <h3>🔎 Live search demand <span class="src-tag">Semrush · US</span></h3>
+      <p class="lead">${esc(sd.note || sd.error || 'No search data found for this phrase.')}</p>
+    </div>`;
+  }
+  const related = sd.related.map((r) => `
+    <div class="kw-row"><span class="kw">${esc(r.keyword)}</span>
+      <span class="kw-meta">${fmtNum(r.volume)}/mo · $${r.cpc.toFixed(2)} CPC</span></div>`).join('');
+  const questions = sd.questions.map((q) => `<li>${esc(q.keyword)} <span class="kw-vol">(${fmtNum(q.volume)}/mo)</span></li>`).join('');
+  return `<div class="card full semrush-card">
+    <h3>🔎 Live search demand <span class="src-tag">Semrush · ${esc(sd.database.toUpperCase())}</span></h3>
+    <div class="sd-metrics">
+      <div class="sd-metric"><div class="sd-val">${fmtNum(sd.volume)}</div><div class="sd-label">searches/mo for “${esc(sd.keyword)}”</div></div>
+      <div class="sd-metric"><div class="sd-val">$${sd.cpc.toFixed(2)}</div><div class="sd-label">avg. cost per click</div></div>
+      <div class="sd-metric"><div class="sd-val">${Math.round(sd.competition * 100)}%</div><div class="sd-label">${esc(sd.competitionLabel)}</div></div>
+      <div class="sd-metric">${sparkline(sd.trend)}<div class="sd-label">12-month interest trend</div></div>
+    </div>
+    <p class="lead" style="margin-top:10px"><strong>${esc(sd.demandLabel)}.</strong> ${fmtNum(sd.results)} pages compete for this term organically.</p>
+    <div class="pkg-grid" style="margin-top:8px">
+      ${sd.related.length ? `<div><div class="mini-label" style="margin-bottom:6px">Related keywords by volume</div>${related}</div>` : ''}
+      ${sd.questions.length ? `<div><div class="mini-label" style="margin-bottom:6px">Questions people search — free content ideas</div><ul style="padding-left:18px;font-size:13.5px">${questions}</ul></div>` : ''}
+    </div>
+  </div>`;
+}
+
 function renderInsights() {
   const a = state.analysis;
   if (!a) return;
@@ -170,6 +222,7 @@ function renderInsights() {
       </div>
     </div>
     <div class="insight-grid">
+      ${searchDataCard(a.searchData)}
       <div class="card"><h3>📈 Market trends</h3><ul>${a.trends.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
       <div class="card"><h3>💰 Pricing landscape</h3>
         <div class="price-tier"><strong>Budget</strong>${esc(a.pricing.budget)}</div>
@@ -554,6 +607,19 @@ function renderPackage() {
       <h3>Content ideas (first two weeks)</h3>
       <ul>${p.contentIdeas.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
     </div>
+
+    ${p.searchInsights?.matched ? `
+    <div class="pkg-section">
+      <h3>SEO keywords to target <span class="src-tag">Semrush · ${esc(p.searchInsights.database.toUpperCase())}</span></h3>
+      <p><strong>“${esc(p.searchInsights.keyword)}”</strong> gets ${fmtNum(p.searchInsights.volume)} U.S. searches/mo
+        (avg. $${p.searchInsights.cpc.toFixed(2)} CPC) — ${esc(p.searchInsights.demandLabel.toLowerCase())}.</p>
+      <div class="pkg-grid" style="margin-top:10px">
+        ${p.searchInsights.related.length ? `<div><strong style="font-size:12.5px">Work these into your site &amp; listings</strong>
+          <ul>${p.searchInsights.related.slice(0, 8).map((r) => `<li>${esc(r.keyword)} <span class="kw-vol">(${fmtNum(r.volume)}/mo)</span></li>`).join('')}</ul></div>` : ''}
+        ${p.searchInsights.questions.length ? `<div><strong style="font-size:12.5px">Answer these in your content</strong>
+          <ul>${p.searchInsights.questions.map((q) => `<li>${esc(q.keyword)}</li>`).join('')}</ul></div>` : ''}
+      </div>
+    </div>` : ''}
 
     <div class="pkg-section">
       <h3>Marketing direction</h3>
