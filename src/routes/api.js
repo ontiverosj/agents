@@ -6,33 +6,33 @@ const { generateBrandConcepts, listTones } = require('../lib/names');
 const { generateIdentity, listStyles } = require('../lib/identity');
 const { buildBrandPackage } = require('../lib/packageBuilder');
 const { listCategories } = require('../lib/knowledge');
-const semrush = require('../lib/semrush');
+const searchData = require('../lib/searchData');
 const semrushMcp = require('../lib/semrushMcp');
 const store = require('../lib/store');
 
 // Reference data for building forms
 router.get('/meta', (req, res) => {
-  const s = semrush.status();
+  const s = searchData.status();
   res.json({
     categories: listCategories(),
     tones: listTones(),
     styles: listStyles(),
-    semrush: s,
+    search: s,
     semrushEnabled: Boolean(s.mode && s.ready), // legacy field
   });
 });
 
-// ---------- Semrush connection management ----------
+// ---------- Search-data connection management ----------
 
 router.get('/semrush/status', (req, res) => {
-  res.json(semrush.status());
+  res.json(searchData.status());
 });
 
 // Starts the OAuth flow against Semrush's MCP server (MCP mode only).
 // Redirects the browser to Semrush's authorization page.
 router.get('/semrush/connect', async (req, res) => {
-  if (semrush.mode() !== 'mcp') {
-    return res.status(400).send('Semrush MCP mode is not active. Set SEMRUSH_MODE=mcp in .env (and remove SEMRUSH_API_KEY, which takes precedence).');
+  if (searchData.mode() !== 'semrush-mcp') {
+    return res.status(400).send('Semrush MCP mode is not active. Set SEARCH_MODE=semrush-mcp in .env.');
   }
   try {
     const redirectUrl = process.env.SEMRUSH_MCP_REDIRECT_URL
@@ -79,7 +79,7 @@ router.post('/analyze', async (req, res) => {
     tone: String(tone || ''),
   });
   // Live search-demand enrichment (null when no SEMRUSH_API_KEY configured)
-  analysis.searchData = await semrush.getSearchInsights(String(product).trim());
+  analysis.searchData = await searchData.getSearchInsights(String(product).trim());
   res.json(analysis);
 });
 
@@ -171,7 +171,7 @@ router.post('/package', async (req, res) => {
   }
   const pkg = buildBrandPackage(spec);
   // Live SEO keyword targets for the marketing section (null when disabled)
-  pkg.searchInsights = await semrush.getSearchInsights(String(spec.product).trim());
+  pkg.searchInsights = await searchData.getSearchInsights(String(spec.product).trim());
   res.json(pkg);
 });
 

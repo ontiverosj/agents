@@ -1,17 +1,7 @@
-// Semrush search-demand enrichment with two interchangeable backends:
-//
-//   api — the classic Analytics REST API (SEMRUSH_API_KEY; requires the
-//         API-units add-on on most plans)
-//   mcp — Semrush's official MCP server (see semrushMcp.js; included with
-//         Semrush One Starter/Pro+ and SEO Classic Pro/Guru plans)
-//
-// Mode selection: SEMRUSH_MODE=api|mcp forces one; otherwise the API key
-// wins if present, then MCP if it's configured (API key header or completed
-// OAuth). With neither, enrichment is disabled and the app runs unenriched.
-//
-// Both backends return the identical searchData shape and cache for 24h.
+// Semrush Analytics REST API backend (SEMRUSH_API_KEY; requires a plan with
+// API units). Backend selection lives in searchData.js; this module only
+// talks to api.semrush.com. Responses cache for 24h to conserve API units.
 
-const mcp = require('./semrushMcp');
 const {
   parseCsv, normalizeRow, deriveKeywordCandidates, composeInsights, NO_MATCH,
 } = require('./searchCommon');
@@ -23,31 +13,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const cache = new Map();
 
-// ---------- Mode selection ----------
-
-function mode() {
-  const explicit = (process.env.SEMRUSH_MODE || '').toLowerCase();
-  if (explicit === 'api') return process.env.SEMRUSH_API_KEY ? 'api' : null;
-  if (explicit === 'mcp') return 'mcp';
-  if (process.env.SEMRUSH_API_KEY) return 'api';
-  if (mcp.isReady()) return 'mcp';
-  return null;
-}
-
-function isEnabled() {
-  return mode() !== null;
-}
-
-function status() {
-  const m = mode();
-  return {
-    mode: m,
-    ready: m === 'api' ? true : m === 'mcp' ? mcp.isReady() : false,
-    authMethod: m === 'mcp' ? mcp.authMethod() : m === 'api' ? 'apikey' : null,
-  };
-}
-
-// ---------- Analytics API backend ----------
+// ---------- Analytics API requests ----------
 
 async function request(params) {
   const cacheKey = JSON.stringify(params);
@@ -119,7 +85,7 @@ async function questionKeywords(phrase, limit = 8) {
     .map((r) => ({ keyword: r.keyword, volume: r.volume }));
 }
 
-async function getSearchInsightsViaApi(productText) {
+async function getSearchInsights(productText) {
   try {
     let overview = null;
     for (const candidate of deriveKeywordCandidates(productText)) {
@@ -139,22 +105,8 @@ async function getSearchInsightsViaApi(productText) {
   }
 }
 
-// ---------- Dispatcher ----------
-
-// Never throws — analysis must still work when Semrush is down, out of
-// units, or finds nothing.
-async function getSearchInsights(productText) {
-  const m = mode();
-  if (!m) return null;
-  if (m === 'mcp') {
-    if (!mcp.isReady()) return { available: false, needsConnect: true, source: 'mcp' };
-    return mcp.getSearchInsights(productText);
-  }
-  return getSearchInsightsViaApi(productText);
-}
-
 module.exports = {
-  isEnabled, mode, status, getSearchInsights,
+  getSearchInsights,
   keywordOverview, relatedKeywords, questionKeywords,
   deriveKeywordCandidates, parseCsv,
 };

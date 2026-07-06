@@ -7,7 +7,7 @@
 | Step | What it does |
 |---|---|
 | **1. Discover** | Enter any product, niche, or idea. BrandForge detects the category and scores the opportunity. |
-| **2. Insights** | Market trends, target audiences with pain points and channels, competitor landscape, pricing tiers, and positioning strategies for the category. With Semrush connected: live U.S. search volume, CPC, competition, 12-month trend, related keywords, and question searches. |
+| **2. Insights** | Market trends, target audiences with pain points and channels, competitor landscape, pricing tiers, and positioning strategies for the category. Plus live search demand: interest trends, rising searches, and real question queries via Google Trends (free, default) or Semrush (volumes + CPC). |
 | **3. Brand Ideas** | Six brand concepts per run — evocative names, invented words, personal-brand formats — each with taglines, naming rationale, and social handle ideas. Regenerate for fresh batches. |
 | **4. Visual Identity** | Original SVG logo concepts (monogram, abstract mark, wordmark, badge, lockup), three color palettes, font pairings, and photography/visual direction. Download any logo as SVG. |
 | **5. Clients** | Onboard clients: name, business idea, product, audience, personality, preferred colors, and style. Records persist to disk. |
@@ -21,35 +21,30 @@ npm start
 # open http://localhost:3000
 ```
 
-Requires Node 18+. No API keys are required — the analysis and generation engines are built in.
+Requires Node 18+. No API keys are required — the analysis and generation engines are built in, and live search data comes from the free Google Trends backend by default.
 
-### Optional: live search data via Semrush
+### Live search data
 
-BrandForge can enrich analyses with real search-demand data through **two interchangeable backends** — both return identical data; pick whichever your Semrush plan supports:
+Every analysis includes a **"Live search demand"** card and every brand package an **"SEO keywords to target"** section. Three interchangeable backends power them:
 
-| | Backend | Setup | Plan requirement |
-|---|---|---|---|
-| **A** | Analytics REST API | `SEMRUSH_API_KEY=...` in `.env` | Plan with API units (usually the separate API add-on) |
-| **B** | Semrush MCP server | `SEMRUSH_MODE=mcp` in `.env`, then click **Connect Semrush account** in the Insights step and sign in | [MCP access](https://www.semrush.com/mcp-access): included with Semrush One Starter/Pro+ and SEO Classic Pro/Guru (50K units) |
+| Backend | Cost / setup | What you get |
+|---|---|---|
+| **Google Trends + Autocomplete** *(default — zero setup)* | Free, no key or account | 12-month interest trend + momentum, seasonality peak, related & **rising** searches (▲ +300%), and the real questions people type into Google |
+| **Semrush Analytics REST API** | `SEMRUSH_API_KEY` in `.env`; plan with API units (usually the separate API add-on) | Absolute monthly search volume, CPC, paid-competition density, related keywords by volume, question keywords |
+| **Semrush MCP server** | `SEARCH_MODE=semrush-mcp` in `.env`, then click **Connect Semrush account** in Insights; requires an [MCP-enabled plan](https://www.semrush.com/mcp-access) (Semrush One Starter/Pro+, SEO Classic Pro/Guru) | Same data as the REST API |
 
-```bash
-cp .env.example .env   # fill in option A or B
-npm start
-```
+Selection is automatic: Semrush REST if a key is set, else Semrush MCP if connected, else Google. Force one with `SEARCH_MODE=google|semrush-api|semrush-mcp|off`.
 
-**How MCP mode works:** the app is a full MCP client against Semrush's official endpoint (`https://mcp.semrush.com/v2/mcp`, streamable HTTP). Authentication is OAuth 2.0 with dynamic client registration and PKCE — `/api/semrush/connect` starts the flow, `/api/semrush/callback` completes it, and tokens persist in `data/semrush-oauth.json` (gitignored). Alternatively set `SEMRUSH_MCP_API_KEY` to authenticate with an `Authorization: Apikey` header and skip OAuth entirely. `POST /api/semrush/disconnect` clears stored credentials; `GET /api/semrush/status` reports the active mode. When deploying behind a domain or proxy, set `SEMRUSH_MCP_REDIRECT_URL` to your public callback URL.
+**About the Google backend:** it calls the same internal endpoints the trends.google.com site uses (there is no official Trends API), plus Google's public autocomplete endpoint. Trends numbers are *relative* — interest is indexed to the keyword's own 12-month peak (100), so the card shows momentum, seasonality, and rising queries rather than absolute volumes (that's the Semrush upgrade). Unofficial endpoints can occasionally change or rate-limit; the 24-hour cache keeps request counts low, and failures degrade gracefully to an unenriched analysis.
 
-What it adds (either backend):
-
-- **Insights step** — a "Live search demand" card: monthly U.S. search volume, average CPC, paid-competition density, a 12-month interest trend, the top related keywords by volume, and the questions people search (ready-made content ideas).
-- **Brand package** — an "SEO keywords to target" section with keywords to work into the site/listings and questions to answer in content.
+**How Semrush MCP mode works:** the app is a full MCP client against Semrush's official endpoint (`https://mcp.semrush.com/v2/mcp`, streamable HTTP). Authentication is OAuth 2.0 with dynamic client registration and PKCE — `/api/semrush/connect` starts the flow, `/api/semrush/callback` completes it, and tokens persist in `data/semrush-oauth.json` (gitignored). Alternatively set `SEMRUSH_MCP_API_KEY` to authenticate with an `Authorization: Apikey` header and skip OAuth. `POST /api/semrush/disconnect` clears credentials; `GET /api/semrush/status` reports the active mode. Behind a domain/proxy, set `SEMRUSH_MCP_REDIRECT_URL` to your public callback URL.
 
 Notes:
 
-- Both backends consume Semrush API units per response line, so BrandForge caches responses in-memory for 24 hours.
-- Long product descriptions are automatically distilled to a searchable keyword ("Handmade soy candles with nostalgic scents" → "soy candles"), falling back to shorter phrases until one has measurable volume.
-- Without either backend configured (or if Semrush is down/out of units) the app runs exactly as before — enrichment is additive and never blocks analysis.
-- `SEMRUSH_DATABASE` can override the regional database (default `us`); see `.env.example` for all overrides.
+- All backends cache responses in-memory for 24 hours (Semrush bills per response line; Google rate-limits).
+- Long product descriptions are automatically distilled to a searchable keyword ("Handmade soy candles with nostalgic scents" → "soy candles"), falling back to shorter phrases until one has measurable interest.
+- Enrichment is additive and never blocks analysis — if a data source is down, the app runs exactly as before.
+- `SEMRUSH_DATABASE` sets the region for all backends (default `us`); see `.env.example` for all overrides.
 
 ## API
 
@@ -75,8 +70,10 @@ src/
     analyzer.js       Product intake → opportunity analysis
     names.js          Brand name, tagline & handle generation
     searchCommon.js   Shared normalization for search-demand data
-    semrush.js        Semrush REST client + api/mcp mode dispatcher
-    semrushMcp.js     Semrush MCP client (OAuth + Apikey auth)
+    searchData.js     Backend dispatcher (google / semrush-api / semrush-mcp)
+    googleTrends.js   Free Google Trends + Autocomplete backend (default)
+    semrush.js        Semrush Analytics REST API backend
+    semrushMcp.js     Semrush MCP backend (OAuth + Apikey auth)
     identity.js       Palettes, font pairings, original SVG logo generation
     packageBuilder.js Brand package assembly (content ideas, marketing plan)
     store.js          JSON-file persistence for clients

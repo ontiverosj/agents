@@ -74,7 +74,7 @@ function markDone(step) {
 async function loadMeta() {
   try {
     const meta = await api('/meta');
-    state.semrush = meta.semrush || { mode: null, ready: false };
+    state.search = meta.search || { mode: null, ready: false, provider: null };
     state.semrushEnabled = Boolean(meta.semrushEnabled);
     const catOptions = meta.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
     $('#categorySelect').insertAdjacentHTML('beforeend', catOptions);
@@ -156,9 +156,24 @@ function fmtNum(n) {
   return String(n);
 }
 
+function sourceTag(sd) {
+  const region = (sd.database || 'us').toUpperCase();
+  return sd.source === 'google'
+    ? `<span class="src-tag g">Google Trends · ${esc(region)}</span>`
+    : `<span class="src-tag">Semrush · ${esc(region)}</span>`;
+}
+
+function relatedRow(r) {
+  let meta;
+  if (r.volume != null) meta = `${fmtNum(r.volume)}/mo · $${r.cpc.toFixed(2)} CPC`;
+  else if (r.rising) meta = `<span class="rising">▲ ${esc(r.growth)}</span>`;
+  else meta = r.interest != null ? `interest ${r.interest}` : '';
+  return `<div class="kw-row"><span class="kw">${esc(r.keyword)}</span><span class="kw-meta">${meta}</span></div>`;
+}
+
 function searchDataCard(sd) {
   if (!sd || sd.needsConnect) {
-    if (state.semrush?.mode === 'mcp' && !state.semrush.ready) {
+    if (state.search?.mode === 'semrush-mcp' && !state.search.ready) {
       return `<div class="card full semrush-card off">
         <h3>🔎 Live search demand</h3>
         <p class="lead">Semrush MCP mode is on, but your Semrush account isn't connected yet.
@@ -169,32 +184,43 @@ function searchDataCard(sd) {
     if (state.semrushEnabled) return '';
     return `<div class="card full semrush-card off">
       <h3>🔎 Live search demand</h3>
-      <p class="lead">Connect Semrush to see real U.S. search volume, trends, and the keywords people actually use.
-      Two options in <code>.env</code>: <code>SEMRUSH_API_KEY</code> (Analytics API) or <code>SEMRUSH_MODE=mcp</code>
-      (sign in with your Semrush account) — see the README for setup.</p>
+      <p class="lead">Live search data is off (<code>SEARCH_MODE=off</code>). Remove that setting to use free
+      Google Trends data, or configure Semrush in <code>.env</code> — see the README.</p>
     </div>`;
   }
   if (!sd.matched) {
     return `<div class="card full semrush-card">
-      <h3>🔎 Live search demand <span class="src-tag">Semrush · US</span></h3>
+      <h3>🔎 Live search demand ${sourceTag(sd)}</h3>
       <p class="lead">${esc(sd.note || sd.error || 'No search data found for this phrase.')}</p>
     </div>`;
   }
-  const related = sd.related.map((r) => `
-    <div class="kw-row"><span class="kw">${esc(r.keyword)}</span>
-      <span class="kw-meta">${fmtNum(r.volume)}/mo · $${r.cpc.toFixed(2)} CPC</span></div>`).join('');
-  const questions = sd.questions.map((q) => `<li>${esc(q.keyword)} <span class="kw-vol">(${fmtNum(q.volume)}/mo)</span></li>`).join('');
-  return `<div class="card full semrush-card">
-    <h3>🔎 Live search demand <span class="src-tag">Semrush · ${esc(sd.database.toUpperCase())}</span></h3>
-    <div class="sd-metrics">
+
+  const related = sd.related.map(relatedRow).join('');
+  const questions = sd.questions.map((q) =>
+    `<li>${esc(q.keyword)}${q.volume != null ? ` <span class="kw-vol">(${fmtNum(q.volume)}/mo)</span>` : ''}</li>`).join('');
+
+  // Metric tiles differ by source: Semrush has absolute volume + CPC;
+  // Google Trends has relative interest + momentum + seasonality.
+  const tiles = sd.volume != null ? `
       <div class="sd-metric"><div class="sd-val">${fmtNum(sd.volume)}</div><div class="sd-label">searches/mo for “${esc(sd.keyword)}”</div></div>
       <div class="sd-metric"><div class="sd-val">$${sd.cpc.toFixed(2)}</div><div class="sd-label">avg. cost per click</div></div>
       <div class="sd-metric"><div class="sd-val">${Math.round(sd.competition * 100)}%</div><div class="sd-label">${esc(sd.competitionLabel)}</div></div>
-      <div class="sd-metric">${sparkline(sd.trend)}<div class="sd-label">12-month interest trend</div></div>
-    </div>
-    <p class="lead" style="margin-top:10px"><strong>${esc(sd.demandLabel)}.</strong> ${fmtNum(sd.results)} pages compete for this term organically.</p>
+      <div class="sd-metric">${sparkline(sd.trend)}<div class="sd-label">12-month interest trend</div></div>` : `
+      <div class="sd-metric"><div class="sd-val">${sd.momentum >= 0 ? '+' : ''}${sd.momentum}%</div><div class="sd-label">interest momentum, last 6 months vs prior for “${esc(sd.keyword)}”</div></div>
+      <div class="sd-metric"><div class="sd-val">${sd.interestIndex}/100</div><div class="sd-label">avg. interest vs its 12-month peak</div></div>
+      <div class="sd-metric"><div class="sd-val" style="font-size:19px">${esc(sd.peakLabel || '—')}</div><div class="sd-label">interest peaked</div></div>
+      <div class="sd-metric">${sparkline(sd.trend)}<div class="sd-label">12-month interest trend</div></div>`;
+
+  const summary = sd.volume != null
+    ? `<strong>${esc(sd.demandLabel)}.</strong> ${fmtNum(sd.results)} pages compete for this term organically.`
+    : `<strong>${esc(sd.demandLabel)}.</strong> ${esc(sd.note || '')}`;
+
+  return `<div class="card full semrush-card ${sd.source === 'google' ? 'gsrc' : ''}">
+    <h3>🔎 Live search demand ${sourceTag(sd)}</h3>
+    <div class="sd-metrics">${tiles}</div>
+    <p class="lead" style="margin-top:10px">${summary}</p>
     <div class="pkg-grid" style="margin-top:8px">
-      ${sd.related.length ? `<div><div class="mini-label" style="margin-bottom:6px">Related keywords by volume</div>${related}</div>` : ''}
+      ${sd.related.length ? `<div><div class="mini-label" style="margin-bottom:6px">${sd.volume != null ? 'Related keywords by volume' : 'Related & rising searches'}</div>${related}</div>` : ''}
       ${sd.questions.length ? `<div><div class="mini-label" style="margin-bottom:6px">Questions people search — free content ideas</div><ul style="padding-left:18px;font-size:13.5px">${questions}</ul></div>` : ''}
     </div>
   </div>`;
@@ -620,12 +646,15 @@ function renderPackage() {
 
     ${p.searchInsights?.matched ? `
     <div class="pkg-section">
-      <h3>SEO keywords to target <span class="src-tag">Semrush · ${esc(p.searchInsights.database.toUpperCase())}</span></h3>
-      <p><strong>“${esc(p.searchInsights.keyword)}”</strong> gets ${fmtNum(p.searchInsights.volume)} U.S. searches/mo
-        (avg. $${p.searchInsights.cpc.toFixed(2)} CPC) — ${esc(p.searchInsights.demandLabel.toLowerCase())}.</p>
+      <h3>SEO keywords to target ${sourceTag(p.searchInsights)}</h3>
+      <p>${p.searchInsights.volume != null
+        ? `<strong>“${esc(p.searchInsights.keyword)}”</strong> gets ${fmtNum(p.searchInsights.volume)} U.S. searches/mo
+           (avg. $${p.searchInsights.cpc.toFixed(2)} CPC) — ${esc(p.searchInsights.demandLabel.toLowerCase())}.`
+        : `<strong>“${esc(p.searchInsights.keyword)}”</strong> shows ${esc(p.searchInsights.demandLabel.toLowerCase())} on Google
+           (${p.searchInsights.momentum >= 0 ? '+' : ''}${p.searchInsights.momentum}% over the last 6 months vs the prior 6).`}</p>
       <div class="pkg-grid" style="margin-top:10px">
         ${p.searchInsights.related.length ? `<div><strong style="font-size:12.5px">Work these into your site &amp; listings</strong>
-          <ul>${p.searchInsights.related.slice(0, 8).map((r) => `<li>${esc(r.keyword)} <span class="kw-vol">(${fmtNum(r.volume)}/mo)</span></li>`).join('')}</ul></div>` : ''}
+          <ul>${p.searchInsights.related.slice(0, 8).map((r) => `<li>${esc(r.keyword)}${r.volume != null ? ` <span class="kw-vol">(${fmtNum(r.volume)}/mo)</span>` : r.rising ? ` <span class="rising">▲ ${esc(r.growth)}</span>` : ''}</li>`).join('')}</ul></div>` : ''}
         ${p.searchInsights.questions.length ? `<div><strong style="font-size:12.5px">Answer these in your content</strong>
           <ul>${p.searchInsights.questions.map((q) => `<li>${esc(q.keyword)}</li>`).join('')}</ul></div>` : ''}
       </div>
