@@ -319,7 +319,11 @@ function renderConcepts() {
       <div class="rationale">${esc(c.rationale)}</div>
       ${c.taglines.map((t) => `<div class="tagline">“${esc(t)}”</div>`).join('')}
       <div class="handles">${c.handles.map((h) => `<span class="tag">${esc(h)}</span>`).join('')}</div>
-      <button class="btn primary use-btn" data-use="${i}">Use this concept →</button>
+      <div class="namecheck-result" id="nc-${i}"></div>
+      <div class="row" style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn ghost" data-check="${i}" style="flex:1">🔍 Check availability</button>
+        <button class="btn primary use-btn" data-use="${i}" style="flex:1;margin-top:0">Use this →</button>
+      </div>
     </div>`).join('')}</div>
     <div class="note-box">⚠️ ${esc(state.concepts[0]?.note || '')}</div>`;
 
@@ -333,6 +337,61 @@ function renderConcepts() {
       toast(`"${c.name}" selected — now build its identity`);
     })
   );
+  body.querySelectorAll('[data-check]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const i = Number(btn.dataset.check);
+      runNameCheck(state.concepts[i].name, document.getElementById(`nc-${i}`), btn);
+    })
+  );
+}
+
+/* ---------- Name availability check ---------- */
+
+function domainPill(d) {
+  const cls = d.status === 'available' ? 'ok' : d.status === 'taken' ? 'no' : 'meh';
+  const mark = d.status === 'available' ? '✓' : d.status === 'taken' ? '✗' : '?';
+  return `<span class="dom-pill ${cls}">${mark} ${esc(d.domain)}</span>`;
+}
+
+function renderNameCheck(r) {
+  let tm;
+  if (r.trademarks.checked) {
+    const risk = r.trademarks.risk;
+    const matches = r.trademarks.matches.slice(0, 5).map((m) => `
+      <div class="kw-row"><span class="kw">“${esc(m.wordmark)}” <span class="kw-vol">${esc(m.status)}${m.owner ? ' · ' + esc(m.owner) : ''}</span></span></div>`).join('');
+    tm = `<div class="nc-risk ${esc(risk.level)}">${risk.level === 'high' ? '⛔' : risk.level === 'medium' ? '⚠️' : '✅'} ${esc(risk.summary)}</div>
+      ${matches ? `<div style="margin-top:6px">${matches}</div>` : ''}
+      <a href="${r.links.uspto}" target="_blank" rel="noopener" class="nc-link">Verify on USPTO.gov ↗</a>`;
+  } else if (r.trademarks.notConfigured) {
+    tm = `<div class="nc-risk meh">USPTO database search is off (add free Marker API credentials in .env to enable).
+      <a href="${r.links.uspto}" target="_blank" rel="noopener" class="nc-link">Search USPTO manually ↗</a></div>`;
+  } else {
+    tm = `<div class="nc-risk meh">Trademark search failed: ${esc(r.trademarks.error || 'unknown error')}.
+      <a href="${r.links.uspto}" target="_blank" rel="noopener" class="nc-link">Search USPTO manually ↗</a></div>`;
+  }
+  const socials = [['Instagram', r.links.instagram], ['TikTok', r.links.tiktok], ['X', r.links.x], ['YouTube', r.links.youtube]]
+    .map(([label, url]) => `<a class="nc-link" href="${url}" target="_blank" rel="noopener">${label} ↗</a>`).join(' ');
+  return `
+    <div class="nc-block"><div class="mini-label">USPTO trademarks</div>${tm}</div>
+    <div class="nc-block"><div class="mini-label">Domains (live registry data)</div>
+      <div class="dom-row">${r.domains.map(domainPill).join('')}</div></div>
+    <div class="nc-block"><div class="mini-label">Is ${esc(r.handle)} free? Check manually</div>${socials}</div>
+    <div class="nc-disclaimer">${esc(r.disclaimer)}</div>`;
+}
+
+async function runNameCheck(name, container, btn) {
+  if (!name || !name.trim()) { toast('Enter a name to check'); return; }
+  if (btn) busy(btn, true);
+  container.innerHTML = '<div class="nc-block" style="color:var(--muted);font-size:13px">Checking trademarks and domains…</div>';
+  try {
+    const result = await api('/namecheck', { method: 'POST', body: { name } });
+    container.innerHTML = renderNameCheck(result);
+  } catch (err) {
+    container.innerHTML = '';
+    toast(err.message);
+  } finally {
+    if (btn) busy(btn, false, '🔍 Check availability');
+  }
 }
 
 /* ---------- Step 4: Visual identity ---------- */
@@ -370,6 +429,8 @@ async function generateIdentity(bump) {
 
 $('#generateIdentityBtn').addEventListener('click', () => generateIdentity(false));
 $('#regenIdentityBtn').addEventListener('click', () => generateIdentity(true));
+$('#checkNameBtn').addEventListener('click', (e) =>
+  runNameCheck($('#brandNameInput').value.trim(), $('#nc-identity'), e.currentTarget));
 
 function downloadText(filename, text, mime = 'image/svg+xml') {
   const blob = new Blob([text], { type: mime });

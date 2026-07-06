@@ -8,7 +8,7 @@
 |---|---|
 | **1. Discover** | Enter any product, niche, or idea. BrandForge detects the category and scores the opportunity. |
 | **2. Insights** | Market trends, target audiences with pain points and channels, competitor landscape, pricing tiers, and positioning strategies for the category. Plus live search demand: interest trends, rising searches, and real question queries via Google Trends (free, default) or Semrush (volumes + CPC). |
-| **3. Brand Ideas** | Six brand concepts per run — evocative names, invented words, personal-brand formats — each with taglines, naming rationale, and social handle ideas. Regenerate for fresh batches. |
+| **3. Brand Ideas** | Six brand concepts per run — evocative names, invented words, personal-brand formats — each with taglines, naming rationale, and social handle ideas. Every concept has a one-click **availability check**: USPTO trademark knockout search, live domain availability, and social handle links. Regenerate for fresh batches. |
 | **4. Visual Identity** | Original SVG logo concepts (monogram, abstract mark, wordmark, badge, lockup), three color palettes, font pairings, and photography/visual direction. Download any logo as SVG. |
 | **5. Clients** | Onboard clients: name, business idea, product, audience, personality, preferred colors, and style. Records persist to disk. |
 | **6. Brand Package** | One-click deliverable combining everything: brand name, tagline, logos, palette, audience profile, social bios, 2-week content plan, and marketing direction. Export as JSON or print to PDF. |
@@ -80,6 +80,16 @@ src/
 public/               Single-page app (vanilla JS, no build step)
 data/                 Client records (gitignored, created at runtime)
 ```
+
+### Name availability checks
+
+Every brand concept card (and the Visual Identity step) has a **Check availability** button covering the three things that get new brands in trouble:
+
+1. **USPTO trademarks** — a knockout search of the USPTO database with a risk verdict: ⛔ an active exact match exists, ⚠️ active marks contain the name (review their goods/services), or ✅ no active exact matches. Powered by the [Marker API](https://markerapi.com) (free tier: 1,000 searches/month — set `MARKER_API_USERNAME`/`MARKER_API_PASSWORD` in `.env`). Without credentials, the check still links to a pre-filled USPTO search. (The USPTO's own search site sits behind bot protection, so it can't be queried directly.)
+2. **Domains** — live availability for `.com`, `.net`, `.org`, and `.shop` straight from the registries' official RDAP servers (free, no key, always on). TLDs without RDAP (`.co`, `.io`) are deliberately omitted rather than guessed.
+3. **Social handles** — one-click links to check the handle on Instagram, TikTok, X, and YouTube (platforms block automated availability checks, so honest manual links beat unreliable data).
+
+**This is a first-pass knockout search, not legal clearance.** Trademark law also covers confusingly similar names and related product categories, and state/common-law marks don't appear in USPTO records. The UI repeats this disclaimer on every check; for a name you're about to invest in, get a professional clearance search or a trademark attorney.
 
 ## A note on originality
 

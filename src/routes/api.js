@@ -6,6 +6,7 @@ const { generateBrandConcepts, listTones } = require('../lib/names');
 const { generateIdentity, listStyles } = require('../lib/identity');
 const { buildBrandPackage } = require('../lib/packageBuilder');
 const { listCategories } = require('../lib/knowledge');
+const nameCheck = require('../lib/nameCheck');
 const searchData = require('../lib/searchData');
 const semrushMcp = require('../lib/semrushMcp');
 const store = require('../lib/store');
@@ -63,6 +64,20 @@ router.get('/semrush/callback', async (req, res) => {
 router.post('/semrush/disconnect', (req, res) => {
   semrushMcp.disconnect();
   res.json({ disconnected: true });
+});
+
+// Name availability: USPTO trademark knockout search + domain availability
+// + social handle check links.
+router.post('/namecheck', async (req, res) => {
+  const { name } = req.body || {};
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: 'Please provide a name to check.' });
+  }
+  try {
+    res.json(await nameCheck.checkName(String(name)));
+  } catch (err) {
+    res.status(502).json({ error: `Name check failed: ${err.message}` });
+  }
 });
 
 // 1. Product intake & market analysis

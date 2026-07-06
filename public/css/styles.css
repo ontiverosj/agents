@@ -273,6 +273,25 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .semrush-card.gsrc { border-left-color: #4285f4; }
 .src-tag.g { background: #e8f0fe; color: #1a56c4; }
 .rising { color: var(--good); font-weight: 700; font-size: 12px; white-space: nowrap; }
+
+/* ---------- Name availability check ---------- */
+.namecheck-result:not(:empty) { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 4px; }
+.nc-block { margin-top: 10px; }
+.nc-block .mini-label { margin-bottom: 5px; }
+.nc-risk { font-size: 12.5px; padding: 9px 12px; border-radius: 9px; line-height: 1.45; }
+.nc-risk.lower { background: #ecfdf3; color: #166534; }
+.nc-risk.medium { background: #fff8ec; color: #7a5b1e; }
+.nc-risk.high { background: #fef2f2; color: #991b1b; }
+.nc-risk.meh { background: #f4f4f8; color: var(--muted); }
+.nc-link { font-size: 12px; font-weight: 600; color: var(--accent-dark); text-decoration: none; margin-right: 10px; }
+.nc-link:hover { text-decoration: underline; }
+.nc-risk .nc-link { display: inline-block; margin-top: 4px; }
+.dom-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.dom-pill { font-size: 12px; font-weight: 600; border-radius: 99px; padding: 4px 11px; }
+.dom-pill.ok { background: #ecfdf3; color: #166534; }
+.dom-pill.no { background: #fef2f2; color: #991b1b; }
+.dom-pill.meh { background: #f4f4f8; color: var(--muted); }
+.nc-disclaimer { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
 .mini-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--accent); }
 
 .toast {
