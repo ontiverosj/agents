@@ -112,7 +112,7 @@ async function searchTrademarksRapid(name) {
   if (!res.ok) throw new Error(`Trademark search HTTP ${res.status}`);
   const data = await res.json();
   const items = Array.isArray(data.items) ? data.items : [];
-  return items.slice(0, 10).map((t) => ({
+  return items.map((t) => ({
     wordmark: t.keyword || t.wordmark || '',
     serialNumber: t.serial_number || '',
     status: t.status_label || t.status_code || '',
@@ -131,7 +131,7 @@ async function searchTrademarksMarker(name) {
   if (!res.ok) throw new Error(`Trademark search HTTP ${res.status}`);
   const data = await res.json();
   const marks = Array.isArray(data.trademarks) ? data.trademarks : [];
-  return marks.slice(0, 10).map((t) => ({
+  return marks.map((t) => ({
     wordmark: t.wordmark || t.trademark || '',
     serialNumber: t.serialnumber || t.serialNumber || '',
     status: t.status || '',
@@ -200,7 +200,12 @@ async function checkName(name) {
         marks = await searchTrademarks(trimmed);
         cache.set(key, { value: marks, expires: Date.now() + CACHE_TTL_MS });
       }
-      trademarks = { checked: true, matches: marks, risk: assessTrademarkRisk(trimmed, marks) };
+      // Risk is assessed across ALL returned marks; the display list shows
+      // exact matches first, then the rest, capped at 10.
+      const target = trimmed.toLowerCase();
+      const isExact = (m) => (m.wordmark || '').trim().toLowerCase() === target;
+      const display = [...marks].sort((a, b) => Number(isExact(b)) - Number(isExact(a))).slice(0, 10);
+      trademarks = { checked: true, totalFound: marks.length, matches: display, risk: assessTrademarkRisk(trimmed, marks) };
     } catch (err) {
       console.error('Trademark search failed:', err.message);
       trademarks = { checked: false, error: err.message };
