@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  /* Emissary brand palette — deep ink navy + electric violet */
+  --color-ink-50: #f6f7fb;
+  --color-ink-100: #eceef6;
+  --color-ink-200: #d9dcea;
+  --color-ink-300: #b7bdd6;
+  --color-ink-400: #8d95b8;
+  --color-ink-500: #67709b;
+  --color-ink-600: #4d5580;
+  --color-ink-700: #3e4468;
+  --color-ink-800: #2b3050;
+  --color-ink-900: #171b36;
+  --color-ink-950: #0d1024;
+
+  --color-violet-50: #f3f1ff;
+  --color-violet-100: #e9e5ff;
+  --color-violet-200: #d5cdff;
+  --color-violet-300: #b7a6ff;
+  --color-violet-400: #9576ff;
+  --color-violet-500: #7745ff;
+  --color-violet-600: #6b2bf7;
+  --color-violet-700: #5c1fe0;
+  --color-violet-800: #4c1bb8;
+  --color-violet-900: #401897;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --shadow-card: 0 1px 2px 0 rgb(13 16 36 / 0.04), 0 4px 16px -2px rgb(13 16 36 / 0.06);
+  --shadow-card-lg: 0 2px 4px 0 rgb(13 16 36 / 0.04), 0 12px 32px -4px rgb(13 16 36 / 0.10);
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-pulse-dot: pulse-dot 1.6s ease-in-out infinite;
+  --animate-progress: progress 2.4s ease-in-out infinite;
+  --animate-rise: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  @keyframes progress {
+    0% { width: 12%; }
+    50% { width: 78%; }
+    100% { width: 12%; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-violet-200);
+}
+
+/* Subtle grid backdrop used in hero sections */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgb(13 16 36 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(13 16 36 / 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.bg-grid-fade {
+  mask-image: radial-gradient(ellipse 80% 65% at 50% 0%, black 55%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 65% at 50% 0%, black 55%, transparent 100%);
+}
