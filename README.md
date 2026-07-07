@@ -39,6 +39,10 @@ Optional: `CHAT_MODEL` overrides the model (defaults to `claude-opus-4-8`; `clau
 
 ## Deploy to a public URL (Railway)
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
+
+
+
 1. Push this branch to GitHub (already done).
 2. In **Railway** → **New Project → Deploy from GitHub repo** → pick `ontiverosj/agents`.
 3. Railway auto-detects Node and runs `npm start`.
