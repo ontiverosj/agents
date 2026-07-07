@@ -24,6 +24,26 @@ export default function DashboardOverview() {
         action={<PrimaryButton href="/dashboard/agents/new">+ New agent</PrimaryButton>}
       />
 
+      <Link
+        href="/dashboard/assistant"
+        className="mb-6 flex items-center gap-4 rounded-2xl bg-gradient-to-r from-violet-600 to-ink-900 p-5 shadow-card-lg transition hover:opacity-95"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
+          <svg viewBox="0 0 16 16" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+            <path d="M8 1.5l1.4 3.6a2 2 0 001.5 1.5L14.5 8l-3.6 1.4a2 2 0 00-1.5 1.5L8 14.5 6.6 10.9a2 2 0 00-1.5-1.5L1.5 8l3.6-1.4a2 2 0 001.5-1.5L8 1.5z" />
+          </svg>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-white">Need more hands? Ask the Assistant.</span>
+          <span className="block truncate text-xs text-white/70">
+            Describe your business — it builds a pre-connected AI team and schedules the first runs.
+          </span>
+        </span>
+        <span className="hidden shrink-0 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-ink-950 sm:block">
+          Build a team
+        </span>
+      </Link>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Hours saved this month"

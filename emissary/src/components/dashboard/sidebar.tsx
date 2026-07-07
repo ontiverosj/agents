@@ -10,6 +10,7 @@ const nav = [
     section: "Workspace",
     items: [
       { href: "/dashboard", label: "Overview", icon: "M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6v-9h-6v9zm0-16v5h6V4h-6z" },
+      { href: "/dashboard/assistant", label: "Assistant", icon: "M12 3l1.9 4.8a2.5 2.5 0 001.4 1.4L20 11l-4.7 1.8a2.5 2.5 0 00-1.4 1.4L12 19l-1.9-4.8a2.5 2.5 0 00-1.4-1.4L4 11l4.7-1.8a2.5 2.5 0 001.4-1.4L12 3zM19 16l.7 1.8L21.5 18.5l-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7L19 16z" },
       { href: "/dashboard/agents", label: "Agents", icon: "M16 8a4 4 0 11-8 0 4 4 0 018 0zM4 20v-.5A5.5 5.5 0 019.5 14h5a5.5 5.5 0 015.5 5.5v.5" },
       { href: "/dashboard/tasks", label: "Tasks", icon: "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" },
       { href: "/dashboard/templates", label: "Templates", icon: "M4 5.5A1.5 1.5 0 015.5 4h5v7h-7v-5.5zM13.5 4h5A1.5 1.5 0 0120 5.5V11h-6.5V4zM4 13.5H11V20H5.5A1.5 1.5 0 014 18.5v-5zM13.5 13.5H20v5a1.5 1.5 0 01-1.5 1.5h-5v-6.5z" },

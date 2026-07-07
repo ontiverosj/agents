@@ -852,3 +852,122 @@ export const workspaceStats = {
   weeklyTaskCounts: [18, 24, 22, 31, 28, 35, 33], // last 7 weeks
   weeklyHoursSaved: [12, 15, 14, 19, 18, 23, 21],
 };
+
+/* ------------------------------------------------------------------ */
+/* Team playbooks — the Assistant deploys these as ready-to-run teams  */
+/* ------------------------------------------------------------------ */
+
+export interface PlaybookAgent {
+  name: string;
+  initials: string;
+  hue: number;
+  role: string;
+  brief: string;
+  schedule: string;
+  output: string;
+}
+
+export interface TeamPlaybook {
+  id: string;
+  business: string;
+  keywords: string[]; // matched against the user's business description
+  headline: string;
+  summary: string;
+  integrations: string[]; // integration ids auto-connected on deploy
+  firstDeliverable: string;
+  agents: PlaybookAgent[];
+}
+
+export const teamPlaybooks: TeamPlaybook[] = [
+  {
+    id: "real-estate",
+    business: "Real estate & investing",
+    keywords: ["real estate", "property", "properties", "house", "houses", "flip", "listing", "realtor", "broker", "invest", "housing", "rental", "duplex", "apartment"],
+    headline: "A deal-sourcing team that never sleeps",
+    summary: "Watches your markets around the clock, comps every match, and keeps clients warm with market digests.",
+    integrations: ["gmail", "gsheets", "slack"],
+    firstDeliverable: "Matching listings with comps in your inbox by tomorrow morning",
+    agents: [
+      { name: "Deal Spotter", initials: "DS", hue: 24, role: "Listing monitor", brief: "Watch listing sites in your target markets and alert the moment a property matches your buy box.", schedule: "Every 30 min", output: "Slack alert + comp sheet" },
+      { name: "Comp Analyst", initials: "CA", hue: 205, role: "Pricing analysis", brief: "Pull recent comparables for every match and compute price-per-sqft, days-on-market, and spread vs. ask.", schedule: "On new match", output: "Google Sheet" },
+      { name: "Client Digest", initials: "CD", hue: 152, role: "Client updates", brief: "Compile a weekly market summary per client with new inventory, price cuts, and closed comps.", schedule: "Fridays 4 PM", output: "Email drafts" },
+    ],
+  },
+  {
+    id: "ecommerce",
+    business: "Ecommerce & DTC",
+    keywords: ["ecommerce", "e-commerce", "shopify", "store", "shop", "dtc", "amazon", "product", "retail", "brand", "sell online", "marketplace"],
+    headline: "Full competitor and marketplace coverage, daily",
+    summary: "Every competitor SKU checked every day, reviews digested into themes, stock-outs caught before they cost you.",
+    integrations: ["gsheets", "slack", "gmail"],
+    firstDeliverable: "Competitor price map across your catalog within 24 hours",
+    agents: [
+      { name: "Shelf Watcher", initials: "SW", hue: 258, role: "Price monitoring", brief: "Track competitor product pages daily; alert #pricing on any move over your threshold.", schedule: "Daily 6 AM", output: "Slack alert + diff sheet" },
+      { name: "Review Radar", initials: "RR", hue: 340, role: "Review intelligence", brief: "Collect new reviews across marketplaces weekly and cluster them into praise, complaints, and feature requests.", schedule: "Mondays 9 AM", output: "PDF digest" },
+      { name: "Inventory Sentinel", initials: "IS", hue: 190, role: "Stock tracking", brief: "Watch competitor stock status and buy-box changes; flag stock-outs as pricing opportunities.", schedule: "Every 2 hours", output: "Google Sheet" },
+    ],
+  },
+  {
+    id: "saas-sales",
+    business: "SaaS & B2B sales",
+    keywords: ["saas", "software", "b2b", "sales", "pipeline", "leads", "crm", "startup"],
+    headline: "A pipeline engine that runs before your reps wake up",
+    summary: "Fresh scored leads every morning, competitor moves tracked daily, and a CRM that cleans itself.",
+    integrations: ["hubspot", "gsheets", "slack", "gmail"],
+    firstDeliverable: "Your first ranked lead list before tomorrow's standup",
+    agents: [
+      { name: "Lead Hunter", initials: "LH", hue: 258, role: "Prospecting", brief: "Find companies matching your ICP showing buying signals; verify decision-makers and stage CRM drafts.", schedule: "Weekdays 7 AM", output: "Scored CSV + CRM drafts" },
+      { name: "Market Monitor", initials: "MM", hue: 205, role: "Competitive intel", brief: "Diff competitor pricing and plan pages daily; alert on any change with a side-by-side.", schedule: "Daily 6:30 AM", output: "Slack alert + PDF" },
+      { name: "CRM Groomer", initials: "CG", hue: 120, role: "Data hygiene", brief: "Sweep the CRM weekly for stale records; re-verify titles, domains, and sizes against live websites.", schedule: "Sundays 6 PM", output: "Change log for approval" },
+    ],
+  },
+  {
+    id: "recruiting",
+    business: "Recruiting & staffing",
+    keywords: ["recruit", "staffing", "talent", "hiring", "hire", "candidates", "candidate", "hr", "headhunt", "job board"],
+    headline: "Sourcing that runs overnight, outreach ready by morning",
+    summary: "Candidates sourced and scored while you sleep, job boards watched continuously, outreach drafted for review.",
+    integrations: ["gmail", "gsheets", "slack"],
+    firstDeliverable: "A ranked candidate list for your open role by tomorrow",
+    agents: [
+      { name: "Talent Scout", initials: "TS", hue: 24, role: "Candidate sourcing", brief: "Source candidates matching each role brief from job boards and public profiles; score fit with evidence.", schedule: "Nightly 11 PM", output: "Ranked spreadsheet" },
+      { name: "Board Watcher", initials: "BW", hue: 190, role: "Job board monitor", brief: "Watch target companies' careers pages; alert when relevant roles open or close.", schedule: "Every 4 hours", output: "Slack alert" },
+      { name: "Outreach Drafter", initials: "OD", hue: 300, role: "Outreach prep", brief: "Draft personalized outreach for top candidates referencing one real project each. Never send — drafts only.", schedule: "After each sourcing run", output: "Gmail drafts" },
+    ],
+  },
+  {
+    id: "agency",
+    business: "Agencies & consultancies",
+    keywords: ["agency", "consult", "clients", "marketing", "white label", "freelance", "services"],
+    headline: "Client work that compounds while you sell",
+    summary: "Prospect research, client reporting, and competitive briefs — productized and running on schedule for every client.",
+    integrations: ["gsheets", "slack", "gmail", "notion"],
+    firstDeliverable: "A client-ready competitive brief for your next pitch",
+    agents: [
+      { name: "Pitch Researcher", initials: "PR", hue: 258, role: "Prospect research", brief: "Before each pitch, compile a brief on the prospect: positioning, competitors, recent news, tech stack.", schedule: "On demand", output: "Notion brief" },
+      { name: "Client Reporter", initials: "CR", hue: 152, role: "Reporting", brief: "Compile each client's weekly numbers from their platforms into a branded summary for review.", schedule: "Mondays 7 AM", output: "PDF per client" },
+      { name: "Retainer Radar", initials: "RA", hue: 40, role: "Client monitoring", brief: "Watch each client's competitors and industry news; surface anything worth a proactive email.", schedule: "Daily 8 AM", output: "Slack digest" },
+    ],
+  },
+  {
+    id: "operations",
+    business: "Operations & finance",
+    keywords: ["operations", "ops", "finance", "logistics", "invoices", "portal", "reconcil", "vendor", "back office"],
+    headline: "The back office that runs itself",
+    summary: "Portal logins, data pulls, reconciliation, and weekly reporting — automated with approvals on anything sensitive.",
+    integrations: ["gsheets", "gmail", "slack"],
+    firstDeliverable: "This week's portal data consolidated into one sheet",
+    agents: [
+      { name: "Portal Collector", initials: "PC", hue: 152, role: "Data collection", brief: "Log into vendor portals on schedule with vaulted credentials; download and normalize recurring reports.", schedule: "Mondays 8 AM", output: "Google Sheet" },
+      { name: "Invoice Reconciler", initials: "IR", hue: 4, role: "Reconciliation", brief: "Cross-check invoices against orders and shipment logs; flag any line over the discrepancy threshold.", schedule: "After each collection", output: "Exception report" },
+      { name: "Weekly Reporter", initials: "WR", hue: 220, role: "Reporting", brief: "Compile the ops summary with exceptions on top; email it before Monday standup.", schedule: "Mondays 8:45 AM", output: "Email summary" },
+    ],
+  },
+];
+
+/* One-tap integration bundles the Assistant connects during team setup. */
+export const integrationBundles = [
+  { id: "google", name: "Google Workspace", items: ["gmail", "gsheets"], desc: "Email drafts, digests, and spreadsheets — the default delivery stack." },
+  { id: "revenue", name: "Revenue stack", items: ["hubspot", "slack"], desc: "CRM drafts with approval publishing, plus alerts where your team talks." },
+  { id: "ops", name: "Ops stack", items: ["airtable", "notion", "zapier"], desc: "Structured records, published briefs, and triggers into 6,000+ apps." },
+];

@@ -315,6 +315,61 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ---------------------------------------------- Assistant pitch */}
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-14 lg:grid-cols-2">
+          <div>
+            <SectionHeading
+              eyebrow="Emissary Assistant"
+              title="Don't build one agent. Deploy a team."
+              lede="Inside every workspace is an assistant that already knows how businesses like yours run. Describe what your company does, and it assembles a pre-configured team of coworkers, connects the right apps, and schedules the first runs — usable deliverables within a day."
+            />
+            <ul className="mt-8 space-y-3">
+              {[
+                "Ready-made teams for real estate, ecommerce, SaaS, recruiting, agencies, and ops",
+                "Integrations connected in the same flow — no app-by-app setup",
+                "Approval guardrails applied to every agent from the first run",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-3 text-ink-700">
+                  <CheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8">
+              <ButtonLink href="/signup">Meet your Assistant <ArrowRight /></ButtonLink>
+            </div>
+          </div>
+          <Card className="p-6">
+            <p className="text-xs font-semibold uppercase tracking-wider text-ink-400">Assistant · new workspace</p>
+            <div className="mt-4 rounded-xl bg-ink-50 p-4 text-sm leading-relaxed text-ink-700">
+              &ldquo;We flip houses in Austin and San Antonio — finding deals fast is everything.&rdquo;
+            </div>
+            <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/60 p-4">
+              <p className="text-xs font-semibold text-violet-700">Proposed team — ready in minutes</p>
+              <ul className="mt-3 space-y-2.5">
+                {[
+                  ["Deal Spotter", "watches listings every 30 min, alerts with comps"],
+                  ["Comp Analyst", "prices every match against recent sales"],
+                  ["Client Digest", "weekly market summaries, drafted for review"],
+                ].map(([name, desc]) => (
+                  <li key={name} className="flex items-baseline gap-2 text-sm">
+                    <span className="font-semibold text-ink-950">{name}</span>
+                    <span className="text-xs text-ink-500">{desc}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 border-t border-violet-100 pt-3 text-xs text-ink-500">
+                Connects Gmail, Sheets & Slack · guardrails on · first alert by tomorrow morning
+              </p>
+            </div>
+            <div className="mt-4 rounded-full bg-violet-600 py-2.5 text-center text-sm font-semibold text-white">
+              Deploy this team
+            </div>
+          </Card>
+        </div>
+      </section>
+
       {/* -------------------------------------------------------- CTA */}
       <section className="relative overflow-hidden bg-ink-950 py-24">
         <div
