@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 /**
  * MVP auth form. Submits to the stub /api/auth route and enters the demo
  * workspace. In production this is replaced by Supabase Auth (email/password
  * + Google OAuth) — see README "Authentication".
  */
-export function AuthForm({ mode }: { mode: "login" | "signup" }) {
+export function AuthForm({ mode, googleEnabled = false }: { mode: "login" | "signup"; googleEnabled?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,7 +39,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     <form onSubmit={submit} className="space-y-4">
       <button
         type="button"
-        onClick={() => router.push("/dashboard")}
+        onClick={() =>
+          googleEnabled
+            ? signIn("google", { callbackUrl: "/dashboard" })
+            : router.push("/dashboard")
+        }
         className="flex w-full items-center justify-center gap-3 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-300 hover:bg-ink-50"
       >
         <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
@@ -49,6 +54,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </svg>
         Continue with Google
       </button>
+      {!googleEnabled && (
+        <p className="text-center text-xs text-ink-400">
+          Google sign-in isn&rsquo;t configured yet — this opens the demo workspace. Add
+          AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET to .env.local to enable it.
+        </p>
+      )}
 
       <div className="flex items-center gap-3 text-xs text-ink-400">
         <span className="h-px flex-1 bg-ink-100" />

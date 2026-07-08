@@ -1,10 +1,10 @@
 /**
- * Team blueprints — the Architect's output format.
+ * Agent blueprints — the Architect's output format.
  *
- * A blueprint describes a LEAD agent, the SUB-AGENTS it delegates to, and the
- * connections (MCP servers / REST APIs / OAuth apps) the team needs. It is
- * produced either by the live LLM architect (/api/architect with
- * ANTHROPIC_API_KEY set) or by the playbook fallback below (sample mode).
+ * A blueprint describes ONE agent and the connections (built-in integrations,
+ * MCP servers, or REST APIs) it needs. Produced either by the live LLM
+ * architect (/api/architect with ANTHROPIC_API_KEY set) or by the playbook
+ * fallback below (sample mode).
  */
 
 import { teamPlaybooks, type TeamPlaybook } from "@/lib/data";
@@ -27,13 +27,9 @@ export interface BlueprintConnection {
   integrationId?: string;
 }
 
-export interface TeamBlueprint {
+export interface AgentBlueprint {
   mode: "live" | "sample";
-  teamName: string;
-  headline: string;
-  summary: string;
-  lead: BlueprintAgent;
-  subAgents: BlueprintAgent[];
+  agent: BlueprintAgent;
   connections: BlueprintConnection[];
   approvalRules: string[];
   firstDeliverable: string;
@@ -43,13 +39,22 @@ export interface TeamBlueprint {
 export const BLUEPRINT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["teamName", "headline", "summary", "lead", "subAgents", "connections", "approvalRules", "firstDeliverable"],
+  required: ["agent", "connections", "approvalRules", "firstDeliverable"],
   properties: {
-    teamName: { type: "string", description: "Short name for the team, e.g. 'Acme Deal Desk'" },
-    headline: { type: "string", description: "One-line pitch for what this team does" },
-    summary: { type: "string", description: "2-3 sentence summary of how the team works" },
-    lead: { $ref: "#/$defs/agent" },
-    subAgents: { type: "array", items: { $ref: "#/$defs/agent" } },
+    agent: {
+      type: "object",
+      additionalProperties: false,
+      required: ["name", "initials", "hue", "role", "brief", "schedule", "output"],
+      properties: {
+        name: { type: "string", description: "Short coworker-style name, e.g. 'Deal Spotter'" },
+        initials: { type: "string", description: "2 letters" },
+        hue: { type: "integer", description: "avatar hue 0-360" },
+        role: { type: "string" },
+        brief: { type: "string", description: "2-4 sentence working brief: what to do, where to look, what done looks like" },
+        schedule: { type: "string", description: "e.g. 'Weekdays 7 AM' or 'Every 30 min'" },
+        output: { type: "string", description: "the deliverable, e.g. 'Slack alert + comp sheet'" },
+      },
+    },
     connections: {
       type: "array",
       items: {
@@ -70,22 +75,6 @@ export const BLUEPRINT_SCHEMA = {
     approvalRules: { type: "array", items: { type: "string" } },
     firstDeliverable: { type: "string" },
   },
-  $defs: {
-    agent: {
-      type: "object",
-      additionalProperties: false,
-      required: ["name", "initials", "hue", "role", "brief", "schedule", "output"],
-      properties: {
-        name: { type: "string" },
-        initials: { type: "string", description: "2 letters" },
-        hue: { type: "integer", description: "avatar hue 0-360" },
-        role: { type: "string" },
-        brief: { type: "string", description: "1-2 sentence working brief" },
-        schedule: { type: "string", description: "e.g. 'Daily 6 AM' or 'On demand'" },
-        output: { type: "string", description: "the deliverable, e.g. 'Slack alert + comp sheet'" },
-      },
-    },
-  },
 } as const;
 
 const CONNECTION_PURPOSES: Record<string, { kind: "mcp" | "rest" | "oauth"; purpose: string }> = {
@@ -100,7 +89,7 @@ const CONNECTION_PURPOSES: Record<string, { kind: "mcp" | "rest" | "oauth"; purp
 };
 
 /** Deterministic fallback used when no LLM key is configured (sample mode). */
-export function blueprintFromPlaybook(description: string): TeamBlueprint {
+export function blueprintFromPlaybook(description: string): AgentBlueprint {
   const t = description.toLowerCase();
   let best: TeamPlaybook = teamPlaybooks[0];
   let bestScore = 0;
@@ -112,22 +101,10 @@ export function blueprintFromPlaybook(description: string): TeamBlueprint {
     }
   }
 
-  const [leadAgent, ...rest] = best.agents;
+  const a = best.agents[0];
   return {
     mode: "sample",
-    teamName: best.business,
-    headline: best.headline,
-    summary: best.summary,
-    lead: {
-      name: leadAgent.name,
-      initials: leadAgent.initials,
-      hue: leadAgent.hue,
-      role: `Lead — ${leadAgent.role}`,
-      brief: `${leadAgent.brief} Coordinates the team: breaks the work into subtasks, delegates to sub-agents, and assembles their results into the final deliverable.`,
-      schedule: leadAgent.schedule,
-      output: leadAgent.output,
-    },
-    subAgents: rest.map((a) => ({
+    agent: {
       name: a.name,
       initials: a.initials,
       hue: a.hue,
@@ -135,16 +112,15 @@ export function blueprintFromPlaybook(description: string): TeamBlueprint {
       brief: a.brief,
       schedule: a.schedule,
       output: a.output,
-    })),
+    },
     connections: best.integrations.map((id) => ({
       name: id === "gsheets" ? "Google Sheets" : id.charAt(0).toUpperCase() + id.slice(1),
       integrationId: id,
-      ...(CONNECTION_PURPOSES[id] ?? { kind: "rest" as const, purpose: "Used by this team" }),
+      ...(CONNECTION_PURPOSES[id] ?? { kind: "rest" as const, purpose: "Used by this agent" }),
     })),
     approvalRules: [
       "Sending emails or messages pauses for approval",
       "Submitting web forms pauses for approval",
-      "Publishing CRM or database records pauses for approval",
       "Payment details and personal data access are blocked (platform-enforced)",
     ],
     firstDeliverable: best.firstDeliverable,

@@ -7,21 +7,16 @@ import {
   PageHeader,
   Panel,
   AgentStatusBadge,
-  TaskStatusBadge,
   BrowserPreview,
-  OutputChip,
   StatCard,
 } from "@/components/dashboard/widgets";
-import { ApprovalList } from "@/components/dashboard/approval-list";
 import { MemoryEditor } from "@/components/dashboard/memory-editor";
-import { agents as demoAgents, tasksForAgent, approvals } from "@/lib/data";
 import { useWorkspace, workspace } from "@/lib/workspace";
 
 export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const ws = useWorkspace();
-  const agent = ws.agents.find((a) => a.id === id) ?? demoAgents.find((a) => a.id === id);
-  const isYours = ws.agents.some((a) => a.id === id);
+  const agent = ws.agents.find((a) => a.id === id);
 
   if (!agent) {
     return (
@@ -34,9 +29,6 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       </div>
     );
   }
-
-  const agentTasks = tasksForAgent(id);
-  const agentApprovals = approvals.filter((a) => a.agentId === id);
 
   return (
     <>
@@ -95,50 +87,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             </Panel>
           )}
 
-          {agentApprovals.length > 0 && (
-            <Panel
-              title="Approval requests"
-              action={
-                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-                  {agentApprovals.length} pending
-                </span>
-              }
-            >
-              <ApprovalList initial={agentApprovals} />
-            </Panel>
-          )}
-
           <Panel title="Task history">
-            {agentTasks.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-ink-400">
-                No completed runs yet — the first is scheduled.
-              </p>
-            ) : (
-              <ul className="divide-y divide-ink-100">
-                {agentTasks.map((t) => (
-                  <li key={t.id} className="px-5 py-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-ink-950">{t.title}</p>
-                      <TaskStatusBadge status={t.status} />
-                      <span className="ml-auto text-xs text-ink-400">
-                        {t.finishedAt ? `Finished ${t.finishedAt}` : t.startedAt}
-                      </span>
-                    </div>
-                    {t.outputs.length > 0 && (
-                      <div className="mt-2.5 flex flex-wrap gap-2">
-                        {t.outputs.map((o) => (
-                          <OutputChip key={o.name} name={o.name} type={o.type} size={o.size} />
-                        ))}
-                      </div>
-                    )}
-                    <p className="mt-2 text-xs text-ink-400">
-                      {t.stepsDone}/{t.stepsTotal} steps ·{" "}
-                      <span className="cursor-pointer font-medium text-violet-600 hover:text-violet-800">View replay</span>
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p className="px-5 py-8 text-center text-sm text-ink-400">
+              No runs yet — the first is scheduled. Every step, output, and approval will be
+              recorded here.
+            </p>
           </Panel>
         </div>
 
@@ -162,7 +115,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             </ul>
           </Panel>
 
-          {isYours && (
+          {(
             <button
               onClick={() => {
                 workspace.removeAgent(id);

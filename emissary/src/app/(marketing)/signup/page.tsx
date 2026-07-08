@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthForm } from "@/components/marketing/auth-form";
+import { googleConfigured } from "@/auth";
 import { CheckIcon } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Start Free" };
@@ -33,7 +34,7 @@ export default function SignupPage() {
             <h2 className="text-2xl font-semibold tracking-tight text-ink-950">Create your account</h2>
             <p className="mt-1.5 text-sm text-ink-500">Free forever plan. Upgrade only when the work does.</p>
             <div className="mt-7">
-              <AuthForm mode="signup" />
+              <AuthForm mode="signup" googleEnabled={googleConfigured} />
             </div>
           </div>
           <p className="mt-6 text-center text-sm text-ink-500">

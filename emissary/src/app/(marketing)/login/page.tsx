@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthForm } from "@/components/marketing/auth-form";
+import { googleConfigured } from "@/auth";
 
 export const metadata: Metadata = { title: "Log in" };
 
@@ -13,7 +14,7 @@ export default function LoginPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-ink-950">Welcome back</h1>
           <p className="mt-1.5 text-sm text-ink-500">Your coworkers kept working while you were away.</p>
           <div className="mt-7">
-            <AuthForm mode="login" />
+            <AuthForm mode="login" googleEnabled={googleConfigured} />
           </div>
         </div>
         <p className="mt-6 text-center text-sm text-ink-500">
