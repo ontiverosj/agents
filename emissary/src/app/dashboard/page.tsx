@@ -5,11 +5,11 @@ import {
   PrimaryButton,
   StatCard,
   Panel,
-  AgentStatusBadge,
   TaskStatusBadge,
   ProgressBar,
 } from "@/components/dashboard/widgets";
 import { ApprovalList } from "@/components/dashboard/approval-list";
+import { RosterPanel } from "@/components/dashboard/roster-panel";
 import { agents, tasks, approvals, workspaceStats } from "@/lib/data";
 
 export default function DashboardOverview() {
@@ -117,25 +117,7 @@ export default function DashboardOverview() {
         </div>
 
         <div className="space-y-6">
-          <Panel
-            title="Your coworkers"
-            action={<Link href="/dashboard/agents" className="text-xs font-medium text-violet-600 hover:text-violet-800">Manage →</Link>}
-          >
-            <ul className="divide-y divide-ink-100">
-              {agents.map((a) => (
-                <li key={a.id}>
-                  <Link href={`/dashboard/agents/${a.id}`} className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-ink-50/60">
-                    <AgentAvatar initials={a.initials} hue={a.avatarHue} size="md" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-ink-950">{a.name}</p>
-                      <p className="truncate text-xs text-ink-400">{a.currentActivity ?? a.role}</p>
-                    </div>
-                    <AgentStatusBadge status={a.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Panel>
+          <RosterPanel />
 
           <Panel title="Recently delivered">
             <ul className="divide-y divide-ink-100">

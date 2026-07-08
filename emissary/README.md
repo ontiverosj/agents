@@ -51,6 +51,23 @@ npm run build && npm start   # production build
 input and return data shaped exactly like the production schema below, so the frontend
 swaps to real persistence without changes.
 
+## The Architect (real LLM integration)
+
+The Assistant page is backed by `POST /api/architect`. Given a plain-English business
+description it returns a **team blueprint**: a lead agent that decomposes the work, the
+sub-agents it delegates to, and the API/MCP connections the team needs.
+
+- **Live mode** — set `ANTHROPIC_API_KEY` (copy `.env.example` to `.env.local`) and the
+  blueprint is designed by Claude with structured outputs (`src/app/api/architect/route.ts`).
+- **Sample mode** — without a key, the endpoint falls back to the built-in playbook library
+  so the product works out of the box. The UI labels which mode produced the plan.
+
+Deployed teams persist in the browser (localStorage workspace store, `src/lib/workspace.ts`)
+so agents you create appear in the roster, survive reloads, and can be removed. Demo data
+can be hidden per workspace. The Integrations page accepts **custom MCP servers and REST
+APIs** (name + endpoint + optional key) and verifies reachability via
+`POST /api/connections/test`; the Architect references them when designing teams.
+
 ## Production architecture
 
 The MVP is the top layer of this design; each stub marks its production replacement.

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { templates, integrations } from "@/lib/data";
+import { workspace } from "@/lib/workspace";
 
 const steps = [
   "Name",
@@ -71,6 +72,30 @@ export function AgentWizard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, role, instructions, tools, approvalRules: rules, output, schedule }),
     }).catch(() => {});
+    // persist to the local workspace so it appears in the roster immediately
+    const toolNames = tools.map((t) => integrations.find((i) => i.id === t)?.name ?? t);
+    tools.forEach((t) => workspace.setIntegration(t, true));
+    workspace.addAgents([
+      {
+        id: `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now().toString(36).slice(-4)}`,
+        name,
+        role: role === "custom" ? "Custom agent" : role,
+        status: "working",
+        avatarHue: (name.length * 47) % 360,
+        initials: name.replace(/[^a-zA-Z ]/g, "").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "AG",
+        description: instructions.slice(0, 140) + (instructions.length > 140 ? "…" : ""),
+        instructions,
+        schedule: scheduleOptions.find((s) => s.id === schedule)?.label ?? schedule,
+        tools: ["Web browsing", ...toolNames],
+        memory: [],
+        tasksCompleted: 0,
+        hoursSaved: 0,
+        successRate: 0,
+        createdAt: "just now",
+        lastActive: "just now",
+        currentActivity: schedule === "once" ? "First run in progress" : "First run scheduled",
+      },
+    ]);
     setDone(true);
   }
 

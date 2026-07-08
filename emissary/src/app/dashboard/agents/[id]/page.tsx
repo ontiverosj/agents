@@ -1,5 +1,7 @@
+"use client";
+
+import { use } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { AgentAvatar } from "@/components/ui";
 import {
   PageHeader,
@@ -12,16 +14,26 @@ import {
 } from "@/components/dashboard/widgets";
 import { ApprovalList } from "@/components/dashboard/approval-list";
 import { MemoryEditor } from "@/components/dashboard/memory-editor";
-import { agents, getAgent, tasksForAgent, approvals } from "@/lib/data";
+import { agents as demoAgents, tasksForAgent, approvals } from "@/lib/data";
+import { useWorkspace, workspace } from "@/lib/workspace";
 
-export function generateStaticParams() {
-  return agents.map((a) => ({ id: a.id }));
-}
+export default function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const ws = useWorkspace();
+  const agent = ws.agents.find((a) => a.id === id) ?? demoAgents.find((a) => a.id === id);
+  const isYours = ws.agents.some((a) => a.id === id);
 
-export default async function AgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const agent = getAgent(id);
-  if (!agent) notFound();
+  if (!agent) {
+    return (
+      <div className="mx-auto max-w-md pt-16 text-center">
+        <p className="text-lg font-semibold text-ink-950">Agent not found</p>
+        <p className="mt-1 text-sm text-ink-400">It may have been removed from this workspace.</p>
+        <Link href="/dashboard/agents" className="mt-5 inline-block rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white">
+          Back to agents
+        </Link>
+      </div>
+    );
+  }
 
   const agentTasks = tasksForAgent(id);
   const agentApprovals = approvals.filter((a) => a.agentId === id);
@@ -57,12 +69,12 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Tasks completed" value={`${agent.tasksCompleted}`} sub={`Since ${agent.createdAt}`} />
         <StatCard label="Hours saved" value={`${agent.hoursSaved}`} sub="vs. estimated manual time" />
-        <StatCard label="Success rate" value={`${agent.successRate}%`} sub="Runs without human rescue" />
+        <StatCard label="Success rate" value={agent.successRate > 0 ? `${agent.successRate}%` : "—"} sub="Runs without human rescue" />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          {agent.browserSteps && (
+          {agent.browserSteps ? (
             <Panel title="Live browser preview">
               <div className="p-4">
                 <BrowserPreview
@@ -74,6 +86,12 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
                   <p className="mt-3 text-xs text-ink-400">{agent.currentActivity}</p>
                 )}
               </div>
+            </Panel>
+          ) : (
+            <Panel title="Live browser preview">
+              <p className="px-5 py-8 text-center text-sm text-ink-400">
+                The preview appears here the moment this agent starts its first browser session.
+              </p>
             </Panel>
           )}
 
@@ -91,30 +109,36 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
           )}
 
           <Panel title="Task history">
-            <ul className="divide-y divide-ink-100">
-              {agentTasks.map((t) => (
-                <li key={t.id} className="px-5 py-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium text-ink-950">{t.title}</p>
-                    <TaskStatusBadge status={t.status} />
-                    <span className="ml-auto text-xs text-ink-400">
-                      {t.finishedAt ? `Finished ${t.finishedAt}` : t.startedAt}
-                    </span>
-                  </div>
-                  {t.outputs.length > 0 && (
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      {t.outputs.map((o) => (
-                        <OutputChip key={o.name} name={o.name} type={o.type} size={o.size} />
-                      ))}
+            {agentTasks.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-ink-400">
+                No completed runs yet — the first is scheduled.
+              </p>
+            ) : (
+              <ul className="divide-y divide-ink-100">
+                {agentTasks.map((t) => (
+                  <li key={t.id} className="px-5 py-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium text-ink-950">{t.title}</p>
+                      <TaskStatusBadge status={t.status} />
+                      <span className="ml-auto text-xs text-ink-400">
+                        {t.finishedAt ? `Finished ${t.finishedAt}` : t.startedAt}
+                      </span>
                     </div>
-                  )}
-                  <p className="mt-2 text-xs text-ink-400">
-                    {t.stepsDone}/{t.stepsTotal} steps ·{" "}
-                    <span className="cursor-pointer font-medium text-violet-600 hover:text-violet-800">View replay</span>
-                  </p>
-                </li>
-              ))}
-            </ul>
+                    {t.outputs.length > 0 && (
+                      <div className="mt-2.5 flex flex-wrap gap-2">
+                        {t.outputs.map((o) => (
+                          <OutputChip key={o.name} name={o.name} type={o.type} size={o.size} />
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-2 text-xs text-ink-400">
+                      {t.stepsDone}/{t.stepsTotal} steps ·{" "}
+                      <span className="cursor-pointer font-medium text-violet-600 hover:text-violet-800">View replay</span>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </div>
 
@@ -137,6 +161,18 @@ export default async function AgentDetailPage({ params }: { params: Promise<{ id
               ))}
             </ul>
           </Panel>
+
+          {isYours && (
+            <button
+              onClick={() => {
+                workspace.removeAgent(id);
+                window.location.href = "/dashboard/agents";
+              }}
+              className="w-full rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+            >
+              Remove this agent
+            </button>
+          )}
         </div>
       </div>
     </>
