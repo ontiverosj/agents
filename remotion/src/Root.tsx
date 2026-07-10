@@ -4,6 +4,13 @@ import { Main } from './compositions/Main';
 import { BreakfastAsmr, BreakfastAsmrVertical } from './compositions/BreakfastAsmr';
 import { BreakfastToon } from './compositions/BreakfastToon';
 import {
+  ElevenLabsCut,
+  ELEVENLABS_CUT_DURATION,
+  ELEVENLABS_CUT_FPS,
+  ELEVENLABS_CUT_HEIGHT,
+  ELEVENLABS_CUT_WIDTH,
+} from './compositions/ElevenLabsCut';
+import {
   BREAKFAST_TOTAL_DURATION,
   VIDEO_FPS,
   VIDEO_HEIGHT,
@@ -41,6 +48,14 @@ export const RemotionRoot: React.FC = () => {
         fps={VIDEO_FPS}
         width={1080}
         height={1920}
+      />
+      <Composition
+        id="BreakfastElevenLabs"
+        component={ElevenLabsCut}
+        durationInFrames={ELEVENLABS_CUT_DURATION}
+        fps={ELEVENLABS_CUT_FPS}
+        width={ELEVENLABS_CUT_WIDTH}
+        height={ELEVENLABS_CUT_HEIGHT}
       />
       <Composition
         id="BreakfastToon"
