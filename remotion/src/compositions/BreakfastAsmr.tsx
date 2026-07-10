@@ -25,33 +25,37 @@ type Shot = {
   audio?: string;
   zoom: [number, number];
   pan: [number, number]; // total x/y drift in px
+  rotate?: number; // total degrees of slow roll
 };
 
 const SHOTS_WIDE: Shot[] = [
-  { src: 'stills/croissant.jpg', audio: 'audio/croissant.mp3', zoom: [1.05, 1.22], pan: [-40, -18] },
-  { src: 'stills/pancakes.jpg', audio: 'audio/syrup.mp3', zoom: [1.25, 1.08], pan: [50, 20] },
-  { src: 'stills/strawberry.jpg', audio: 'audio/strawberry.mp3', zoom: [1.06, 1.24], pan: [-45, 22] },
-  { src: 'stills/coffee.jpg', audio: 'audio/coffee.mp3', zoom: [1.22, 1.06], pan: [40, -20] },
+  { src: 'stills/croissant.jpg', audio: 'audio/croissant.mp3', zoom: [1.05, 1.35], pan: [-70, -35], rotate: 1.2 },
+  { src: 'stills/pancakes.jpg', audio: 'audio/syrup.mp3', zoom: [1.35, 1.06], pan: [80, 40], rotate: -1.2 },
+  { src: 'stills/strawberry.jpg', audio: 'audio/strawberry.mp3', zoom: [1.06, 1.35], pan: [-75, 45], rotate: 1.1 },
+  { src: 'stills/coffee.jpg', audio: 'audio/coffee.mp3', zoom: [1.33, 1.05], pan: [70, -40], rotate: -1.1 },
 ];
 
 const SHOTS_VERTICAL: Shot[] = [
-  { src: 'stills-vertical/spread.jpg', audio: 'audio/kitchen.mp3', zoom: [1.04, 1.2], pan: [-20, -35] },
-  { src: 'stills-vertical/croissant.jpg', audio: 'audio/croissant.mp3', zoom: [1.05, 1.22], pan: [18, -40] },
-  { src: 'stills-vertical/pancakes.jpg', audio: 'audio/syrup.mp3', zoom: [1.24, 1.06], pan: [-16, 45] },
-  { src: 'stills-vertical/strawberry.jpg', audio: 'audio/strawberry.mp3', zoom: [1.06, 1.24], pan: [20, 40] },
-  { src: 'stills-vertical/coffee.jpg', audio: 'audio/coffee.mp3', zoom: [1.22, 1.05], pan: [-18, -38] },
-  { src: 'stills-vertical/flatlay.jpg', audio: 'audio/closing.mp3', zoom: [1.18, 1.04], pan: [16, 30] },
+  { src: 'stills-vertical/spread.jpg', audio: 'audio/kitchen.mp3', zoom: [1.0, 1.3], pan: [-35, -70], rotate: -1.2 },
+  { src: 'stills-vertical/croissant.jpg', audio: 'audio/croissant.mp3', zoom: [1.05, 1.35], pan: [35, -80], rotate: 1.2 },
+  { src: 'stills-vertical/pancakes.jpg', audio: 'audio/syrup.mp3', zoom: [1.35, 1.05], pan: [-30, 85], rotate: -1.2 },
+  { src: 'stills-vertical/strawberry.jpg', audio: 'audio/strawberry.mp3', zoom: [1.05, 1.35], pan: [40, 75], rotate: 1.1 },
+  { src: 'stills-vertical/coffee.jpg', audio: 'audio/coffee.mp3', zoom: [1.33, 1.04], pan: [-35, -75], rotate: -1.0 },
+  { src: 'stills-vertical/flatlay.jpg', audio: 'audio/closing.mp3', zoom: [1.3, 1.02], pan: [30, 65], rotate: 1.0 },
 ];
 
 // A still photo with a slow push/pull and drift, like a locked-off
 // macro shot on a slider.
-const KenBurnsShot: React.FC<Shot> = ({ src, zoom, pan }) => {
+const KenBurnsShot: React.FC<Shot> = ({ src, zoom, pan, rotate = 0 }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const t = frame / durationInFrames;
-  const scale = interpolate(t, [0, 1], zoom);
-  const x = interpolate(t, [0, 1], [0, pan[0]]);
-  const y = interpolate(t, [0, 1], [0, pan[1]]);
+  // Main camera move plus a gentle "handheld breathing" oscillation so
+  // the shot never sits perfectly still.
+  const scale = interpolate(t, [0, 1], zoom) * (1 + 0.006 * Math.sin(frame / 26));
+  const x = interpolate(t, [0, 1], [0, pan[0]]) + 5 * Math.sin(frame / 33);
+  const y = interpolate(t, [0, 1], [0, pan[1]]) + 4 * Math.cos(frame / 41);
+  const rot = interpolate(t, [0, 1], [0, rotate]);
   return (
     <AbsoluteFill style={{ overflow: 'hidden', backgroundColor: '#120b06' }}>
       <Img
@@ -60,7 +64,7 @@ const KenBurnsShot: React.FC<Shot> = ({ src, zoom, pan }) => {
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          transform: `scale(${scale}) translate(${x}px, ${y}px)`,
+          transform: `scale(${scale}) rotate(${rot}deg) translate(${x}px, ${y}px)`,
         }}
       />
     </AbsoluteFill>
