@@ -2,6 +2,7 @@ import type React from 'react';
 import { Composition } from 'remotion';
 import { Main } from './compositions/Main';
 import { BreakfastAsmr } from './compositions/BreakfastAsmr';
+import { BreakfastToon } from './compositions/BreakfastToon';
 import {
   BREAKFAST_TOTAL_DURATION,
   VIDEO_FPS,
@@ -28,6 +29,14 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="BreakfastAsmr"
         component={BreakfastAsmr}
+        durationInFrames={BREAKFAST_TOTAL_DURATION}
+        fps={VIDEO_FPS}
+        width={VIDEO_WIDTH}
+        height={VIDEO_HEIGHT}
+      />
+      <Composition
+        id="BreakfastToon"
+        component={BreakfastToon}
         durationInFrames={BREAKFAST_TOTAL_DURATION}
         fps={VIDEO_FPS}
         width={VIDEO_WIDTH}
