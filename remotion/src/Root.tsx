@@ -4,6 +4,13 @@ import { Main } from './compositions/Main';
 import { BreakfastAsmr, BreakfastAsmrVertical } from './compositions/BreakfastAsmr';
 import { BreakfastToon } from './compositions/BreakfastToon';
 import {
+  UgcAd,
+  UGC_AD_DURATION,
+  UGC_AD_FPS,
+  UGC_AD_HEIGHT,
+  UGC_AD_WIDTH,
+} from './compositions/UgcAd';
+import {
   ElevenLabsCut,
   ELEVENLABS_CUT_DURATION,
   ELEVENLABS_CUT_FPS,
@@ -48,6 +55,14 @@ export const RemotionRoot: React.FC = () => {
         fps={VIDEO_FPS}
         width={1080}
         height={1920}
+      />
+      <Composition
+        id="UgcAd"
+        component={UgcAd}
+        durationInFrames={UGC_AD_DURATION}
+        fps={UGC_AD_FPS}
+        width={UGC_AD_WIDTH}
+        height={UGC_AD_HEIGHT}
       />
       <Composition
         id="BreakfastElevenLabs"
