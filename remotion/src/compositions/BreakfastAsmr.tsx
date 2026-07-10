@@ -40,6 +40,7 @@ const SHOTS_VERTICAL: Shot[] = [
   { src: 'stills-vertical/pancakes.jpg', audio: 'audio/syrup.mp3', zoom: [1.24, 1.06], pan: [-16, 45] },
   { src: 'stills-vertical/strawberry.jpg', audio: 'audio/strawberry.mp3', zoom: [1.06, 1.24], pan: [20, 40] },
   { src: 'stills-vertical/coffee.jpg', audio: 'audio/coffee.mp3', zoom: [1.22, 1.05], pan: [-18, -38] },
+  { src: 'stills-vertical/flatlay.jpg', audio: 'audio/closing.mp3', zoom: [1.18, 1.04], pan: [16, 30] },
 ];
 
 // A still photo with a slow push/pull and drift, like a locked-off
@@ -78,11 +79,13 @@ type MontageProps = {
   hero?: { src: string; durationInFrames: number };
   shots: Shot[];
   shotDuration: number;
+  // Extra frames the last shot holds while fading out.
+  tailFrames?: number;
 };
 
-const Montage: React.FC<MontageProps> = ({ hero, shots, shotDuration }) => {
+const Montage: React.FC<MontageProps> = ({ hero, shots, shotDuration, tailFrames = 0 }) => {
   const heroDur = hero ? hero.durationInFrames : 0;
-  const total = heroDur + shots.length * shotDuration;
+  const total = heroDur + shots.length * shotDuration + tailFrames;
 
   // Foley fades in quickly, holds, and fades out before the next shot.
   const cueVolume = (f: number) =>
@@ -109,7 +112,7 @@ const Montage: React.FC<MontageProps> = ({ hero, shots, shotDuration }) => {
         const isLast = i === shots.length - 1;
         const isFirst = i === 0 && !hero;
         return (
-          <Sequence key={shot.src} from={from} durationInFrames={shotDuration + (isLast ? 0 : XFADE)}>
+          <Sequence key={shot.src} from={from} durationInFrames={shotDuration + (isLast ? tailFrames : XFADE)}>
             {isFirst ? (
               <KenBurnsShot {...shot} />
             ) : (
@@ -153,7 +156,7 @@ export const BreakfastAsmr: React.FC = () => (
   />
 );
 
-// 9:16 — 5 vertical stills: 5*372 = 1860 frames
+// 9:16 — 6 vertical stills at 10s each + 2s closing hold: 6*300 + 60 = 1860 frames
 export const BreakfastAsmrVertical: React.FC = () => (
-  <Montage shots={SHOTS_VERTICAL} shotDuration={372} />
+  <Montage shots={SHOTS_VERTICAL} shotDuration={300} tailFrames={60} />
 );
