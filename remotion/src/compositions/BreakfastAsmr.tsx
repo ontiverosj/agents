@@ -1,6 +1,7 @@
 import type React from 'react';
 import {
   AbsoluteFill,
+  Audio,
   Img,
   interpolate,
   OffthreadVideo,
@@ -11,36 +12,39 @@ import {
 } from 'remotion';
 import { FadeTransition } from '../transitions/FadeTransition';
 
-// Cinematic breakfast ASMR montage: a photoreal AI-generated hero clip
-// followed by four photoreal macro stills brought to life with slow
-// Ken Burns camera moves and crossfades. 62s at 30fps.
+// Cinematic breakfast ASMR montage in two aspect ratios.
 //
-// Timeline (frames @30fps):
-//   0-360     hero video (native audio)
-//   360-735   croissant still
-//   735-1110  pancakes still
-//   1110-1485 strawberry still
-//   1485-1860 coffee still
-const HERO = 360;
-const SHOT = 375;
+// 16:9 (BreakfastAsmr): photoreal AI hero clip (native audio) + four
+// photoreal macro stills with Ken Burns moves and ElevenLabs foley.
+// 9:16 (BreakfastAsmrVertical): five vertical stills, fully scored.
+// Both 62s at 30fps (1860 frames).
 const XFADE = 25;
 
-type Move = {
+type Shot = {
   src: string;
+  audio?: string;
   zoom: [number, number];
-  pan: [number, number]; // total x/y drift in px at full scale
+  pan: [number, number]; // total x/y drift in px
 };
 
-const SHOTS: Move[] = [
-  { src: 'stills/croissant.jpg', zoom: [1.05, 1.22], pan: [-40, -18] },
-  { src: 'stills/pancakes.jpg', zoom: [1.25, 1.08], pan: [50, 20] },
-  { src: 'stills/strawberry.jpg', zoom: [1.06, 1.24], pan: [-45, 22] },
-  { src: 'stills/coffee.jpg', zoom: [1.22, 1.06], pan: [40, -20] },
+const SHOTS_WIDE: Shot[] = [
+  { src: 'stills/croissant.jpg', audio: 'audio/croissant.mp3', zoom: [1.05, 1.22], pan: [-40, -18] },
+  { src: 'stills/pancakes.jpg', audio: 'audio/syrup.mp3', zoom: [1.25, 1.08], pan: [50, 20] },
+  { src: 'stills/strawberry.jpg', audio: 'audio/strawberry.mp3', zoom: [1.06, 1.24], pan: [-45, 22] },
+  { src: 'stills/coffee.jpg', audio: 'audio/coffee.mp3', zoom: [1.22, 1.06], pan: [40, -20] },
+];
+
+const SHOTS_VERTICAL: Shot[] = [
+  { src: 'stills-vertical/spread.jpg', audio: 'audio/kitchen.mp3', zoom: [1.04, 1.2], pan: [-20, -35] },
+  { src: 'stills-vertical/croissant.jpg', audio: 'audio/croissant.mp3', zoom: [1.05, 1.22], pan: [18, -40] },
+  { src: 'stills-vertical/pancakes.jpg', audio: 'audio/syrup.mp3', zoom: [1.24, 1.06], pan: [-16, 45] },
+  { src: 'stills-vertical/strawberry.jpg', audio: 'audio/strawberry.mp3', zoom: [1.06, 1.24], pan: [20, 40] },
+  { src: 'stills-vertical/coffee.jpg', audio: 'audio/coffee.mp3', zoom: [1.22, 1.05], pan: [-18, -38] },
 ];
 
 // A still photo with a slow push/pull and drift, like a locked-off
 // macro shot on a slider.
-const KenBurnsShot: React.FC<Move> = ({ src, zoom, pan }) => {
+const KenBurnsShot: React.FC<Shot> = ({ src, zoom, pan }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const t = frame / durationInFrames;
@@ -62,34 +66,69 @@ const KenBurnsShot: React.FC<Move> = ({ src, zoom, pan }) => {
   );
 };
 
-export const BreakfastAsmr: React.FC = () => {
+const FadeOutToBlack: React.FC = () => {
+  const frame = useCurrentFrame();
+  const opacity = interpolate(frame, [0, 45], [0, 1], {
+    extrapolateRight: 'clamp',
+  });
+  return <AbsoluteFill style={{ backgroundColor: '#000', opacity }} />;
+};
+
+type MontageProps = {
+  hero?: { src: string; durationInFrames: number };
+  shots: Shot[];
+  shotDuration: number;
+};
+
+const Montage: React.FC<MontageProps> = ({ hero, shots, shotDuration }) => {
+  const heroDur = hero ? hero.durationInFrames : 0;
+  const total = heroDur + shots.length * shotDuration;
+
+  // Foley fades in quickly, holds, and fades out before the next shot.
+  const cueVolume = (f: number) =>
+    interpolate(f, [0, 15, shotDuration - 30, shotDuration], [0, 0.9, 0.9, 0], {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    });
+
   return (
     <AbsoluteFill style={{ backgroundColor: '#120b06' }}>
-      {/* Hero: photoreal AI clip with its own ASMR audio */}
-      <Sequence durationInFrames={HERO + XFADE}>
-        <AbsoluteFill style={{ overflow: 'hidden' }}>
-          <OffthreadVideo
-            src={staticFile('footage/hero-breakfast.mp4')}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        </AbsoluteFill>
-      </Sequence>
+      {hero ? (
+        <Sequence durationInFrames={heroDur + XFADE}>
+          <AbsoluteFill style={{ overflow: 'hidden' }}>
+            <OffthreadVideo
+              src={staticFile(hero.src)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          </AbsoluteFill>
+        </Sequence>
+      ) : null}
 
-      {/* Four photoreal stills with slow camera moves, crossfaded */}
-      {SHOTS.map((shot, i) => {
-        const from = HERO + i * SHOT;
-        const isLast = i === SHOTS.length - 1;
+      {shots.map((shot, i) => {
+        const from = heroDur + i * shotDuration;
+        const isLast = i === shots.length - 1;
+        const isFirst = i === 0 && !hero;
         return (
-          <Sequence key={shot.src} from={from} durationInFrames={SHOT + (isLast ? 0 : XFADE)}>
-            <FadeTransition durationInFrames={XFADE}>
+          <Sequence key={shot.src} from={from} durationInFrames={shotDuration + (isLast ? 0 : XFADE)}>
+            {isFirst ? (
               <KenBurnsShot {...shot} />
-            </FadeTransition>
+            ) : (
+              <FadeTransition durationInFrames={XFADE}>
+                <KenBurnsShot {...shot} />
+              </FadeTransition>
+            )}
+            {shot.audio ? <Audio src={staticFile(shot.audio)} volume={cueVolume} /> : null}
           </Sequence>
         );
       })}
 
+      {/* Soft kitchen ambience under everything after the hero */}
+      <Sequence from={heroDur}>
+        <Audio loop src={staticFile('audio/ambience.mp3')} volume={0.22} />
+      </Sequence>
+
       {/* Gentle fade to black at the very end */}
-      <Sequence from={HERO + SHOT * 4 - 45}>
+      <Sequence from={total - 45}>
         <FadeOutToBlack />
       </Sequence>
 
@@ -98,17 +137,23 @@ export const BreakfastAsmr: React.FC = () => {
         style={{
           pointerEvents: 'none',
           background:
-            'radial-gradient(ellipse 1700px 1150px at 50% 48%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.42) 100%)',
+            'radial-gradient(ellipse 130% 110% at 50% 48%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.42) 100%)',
         }}
       />
     </AbsoluteFill>
   );
 };
 
-const FadeOutToBlack: React.FC = () => {
-  const frame = useCurrentFrame();
-  const opacity = interpolate(frame, [0, 45], [0, 1], {
-    extrapolateRight: 'clamp',
-  });
-  return <AbsoluteFill style={{ backgroundColor: '#000', opacity }} />;
-};
+// 16:9 — hero video + 4 stills: 360 + 4*375 = 1860 frames
+export const BreakfastAsmr: React.FC = () => (
+  <Montage
+    hero={{ src: 'footage/hero-breakfast.mp4', durationInFrames: 360 }}
+    shots={SHOTS_WIDE}
+    shotDuration={375}
+  />
+);
+
+// 9:16 — 5 vertical stills: 5*372 = 1860 frames
+export const BreakfastAsmrVertical: React.FC = () => (
+  <Montage shots={SHOTS_VERTICAL} shotDuration={372} />
+);
