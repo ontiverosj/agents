@@ -28,5 +28,8 @@ node_modules/
 # build directories
 dist/
 
+# Remotion render output
+remotion/out/
+
 # macOS files
 .DS_Store
