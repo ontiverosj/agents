@@ -4,6 +4,13 @@ import { Main } from './compositions/Main';
 import { BreakfastAsmr, BreakfastAsmrVertical } from './compositions/BreakfastAsmr';
 import { BreakfastToon } from './compositions/BreakfastToon';
 import {
+  UgcAdLong,
+  UGC_LONG_DURATION,
+  UGC_LONG_FPS,
+  UGC_LONG_HEIGHT,
+  UGC_LONG_WIDTH,
+} from './compositions/UgcAdLong';
+import {
   UgcAd,
   UGC_AD_DURATION,
   UGC_AD_FPS,
@@ -55,6 +62,14 @@ export const RemotionRoot: React.FC = () => {
         fps={VIDEO_FPS}
         width={1080}
         height={1920}
+      />
+      <Composition
+        id="UgcAdLong"
+        component={UgcAdLong}
+        durationInFrames={UGC_LONG_DURATION}
+        fps={UGC_LONG_FPS}
+        width={UGC_LONG_WIDTH}
+        height={UGC_LONG_HEIGHT}
       />
       <Composition
         id="UgcAd"
