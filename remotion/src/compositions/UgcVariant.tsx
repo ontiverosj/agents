@@ -99,6 +99,9 @@ const RealProductEndCard: React.FC = () => {
             height: 620,
             transform: `scale(${bottleIn})`,
             filter: 'drop-shadow(0 24px 40px rgba(0,0,0,0.35))',
+            // The source crop ends mid-bottle; fade the cut edge out.
+            maskImage: 'linear-gradient(180deg, #000 78%, transparent 98%)',
+            WebkitMaskImage: 'linear-gradient(180deg, #000 78%, transparent 98%)',
           }}
         />
       </AbsoluteFill>
