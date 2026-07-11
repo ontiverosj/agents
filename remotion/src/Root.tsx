@@ -4,6 +4,13 @@ import { Main } from './compositions/Main';
 import { BreakfastAsmr, BreakfastAsmrVertical } from './compositions/BreakfastAsmr';
 import { BreakfastToon } from './compositions/BreakfastToon';
 import {
+  UgcVariant,
+  UGC_VARIANT_DURATION,
+  UGC_VARIANT_FPS,
+  UGC_VARIANT_HEIGHT,
+  UGC_VARIANT_WIDTH,
+} from './compositions/UgcVariant';
+import {
   UgcAdLong,
   UGC_LONG_DURATION,
   UGC_LONG_FPS,
@@ -62,6 +69,18 @@ export const RemotionRoot: React.FC = () => {
         fps={VIDEO_FPS}
         width={1080}
         height={1920}
+      />
+      <Composition
+        id="UgcVariant"
+        component={UgcVariant}
+        durationInFrames={UGC_VARIANT_DURATION}
+        fps={UGC_VARIANT_FPS}
+        width={UGC_VARIANT_WIDTH}
+        height={UGC_VARIANT_HEIGHT}
+        defaultProps={{
+          clip: 'ugc/variants/v1.mp4',
+          caption: 'The vitamin habit that actually stuck',
+        }}
       />
       <Composition
         id="UgcAdLong"
