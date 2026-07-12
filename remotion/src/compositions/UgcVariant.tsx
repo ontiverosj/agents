@@ -74,7 +74,7 @@ const OrangeHeart: React.FC<{ size: number }> = ({ size }) => (
 );
 
 // End card built around the real product cutout on a warm backdrop.
-const RealProductEndCard: React.FC = () => {
+export const RealProductEndCard: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const bottleIn = spring({ frame: frame - 4, fps, config: { damping: 13 } });
