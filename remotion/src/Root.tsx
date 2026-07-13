@@ -4,6 +4,13 @@ import { Main } from './compositions/Main';
 import { BreakfastAsmr, BreakfastAsmrVertical } from './compositions/BreakfastAsmr';
 import { BreakfastToon } from './compositions/BreakfastToon';
 import {
+  SelerbPsa,
+  SELERB_PSA_DURATION,
+  SELERB_PSA_FPS,
+  SELERB_PSA_HEIGHT,
+  SELERB_PSA_WIDTH,
+} from './compositions/SelerbPsa';
+import {
   UgcAsmrLong,
   UGC_ASMR_DURATION,
   UGC_ASMR_FPS,
@@ -76,6 +83,15 @@ export const RemotionRoot: React.FC = () => {
         fps={VIDEO_FPS}
         width={1080}
         height={1920}
+      />
+      <Composition
+        id="SelerbPsa"
+        component={SelerbPsa}
+        durationInFrames={SELERB_PSA_DURATION}
+        fps={SELERB_PSA_FPS}
+        width={SELERB_PSA_WIDTH}
+        height={SELERB_PSA_HEIGHT}
+        defaultProps={{ clip: 'ugc/variants/v13-selerb-psa.mp4' }}
       />
       <Composition
         id="UgcAsmrLong"
