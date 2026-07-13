@@ -1,19 +1,22 @@
 const Airtable = require('airtable');
+const config = require('./config');
 
-// Initialize Airtable with environment variables
-const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
+// Lazy init so the server boots without Airtable credentials.
+let leadsTable = null;
+function getTable() {
+  if (!leadsTable) {
+    const base = new Airtable({ apiKey: config.airtableApiKey }).base(config.airtableBaseId);
+    leadsTable = base('Acquisition Leads');
+  }
+  return leadsTable;
+}
 
-// Table configuration
-const leadsTable = base('Acquisition Leads');
-
-// Function to get lead by ID
 const getLeadById = async (leadId) => {
-    const record = await leadsTable
-        .select({
-            filterByFormula: `{ID} = '${leadId}'`
-        })
-        .firstPage();
-    return record;
+  const records = await getTable()
+    .select({ filterByFormula: `{ID} = '${leadId}'` })
+    .firstPage();
+  if (!records || records.length === 0) return null;
+  return { id: records[0].id, ...records[0].fields };
 };
 
 module.exports = { getLeadById };

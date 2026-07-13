@@ -1,1 +1,24 @@
-{"name": "agents", "version": "1.0.0", "main": "src/index.js", "scripts": { "start": "node src/index.js", "dev": "nodemon src/index.js" }, "dependencies": { "axios": "1.6.8", "express": "4.18.2" }}
+{
+  "name": "agents",
+  "version": "2.0.0",
+  "description": "TikTok Niche Finder — track niches, score opportunities, generate video game plans",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "dev:client": "npm run dev --prefix client",
+    "build": "npm ci --prefix client && npm run build --prefix client"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
+    "airtable": "^0.12.2",
+    "axios": "^1.6.8",
+    "better-sqlite3": "^11.10.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3"
+  }
+}
