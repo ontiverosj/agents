@@ -1,0 +1,29 @@
+{
+  "name": "syrup-planets-blue-lemonade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SYRUP PLANETS & BLUE LEMONADE — 60s vertical breakfast ASMR built in Remotion",
+  "scripts": {
+    "dev": "remotion studio",
+    "typecheck": "tsc --noEmit",
+    "gen:audio": "node scripts/generate-placeholder-audio.mjs",
+    "render:preview": "remotion render BreakfastASMRPreview out/breakfast-asmr-preview.mp4 --codec=h264 --audio-codec=aac --pixel-format=yuv420p --crf=16",
+    "render:4k": "remotion render BreakfastASMR4K out/breakfast-asmr-4k.mp4 --codec=h264 --audio-codec=aac --pixel-format=yuv420p --crf=15 --concurrency=4",
+    "render:test": "remotion render BreakfastASMRPreview out/test-range.mp4 --frames=420-540 --codec=h264 --audio-codec=aac --pixel-format=yuv420p",
+    "still": "remotion still BreakfastASMRPreview out/qa-still.png --frame=90",
+    "render:node": "node scripts/render.mjs"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.487",
+    "@remotion/media": "4.0.487",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.487"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "4.0.487",
+    "@remotion/renderer": "4.0.487",
+    "@types/react": "18.3.12",
+    "typescript": "5.6.3"
+  }
+}
