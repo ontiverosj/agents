@@ -121,11 +121,13 @@ struct ContentView: View {
     }
 
     private var systemSection: some View {
-        Section("System") {
+        Section {
             MetricRow(label: "Model", value: model.modelName)
             MetricRow(label: "Software", value: model.systemVersion)
             MetricRow(label: "Time since restart", value: model.uptimeText,
                       severity: model.uptime > 7 * 86_400 ? .warning : .good)
+        } header: {
+            Text("System")
         } footer: {
             if let refreshed = model.lastRefreshed {
                 Text("Updated \(refreshed.formatted(date: .omitted, time: .standard)) — refreshes every 3 seconds")
