@@ -16,6 +16,10 @@ notes.
 - `src/elevenlabs.js` — ElevenLabs client: webhook HMAC verification, outbound
   calls, batch calling
 - `src/index.js` — leads listing router (mounted at `/leads`)
+- `scripts/setup-clickup.js` — one-time ClickUp setup: discovers your
+  workspace, picks the leads list, creates any missing custom fields (with
+  the correct dropdown options), and prints the env vars to set. Run it
+  locally: `CLICKUP_API_TOKEN=pk_xxx node scripts/setup-clickup.js`
 
 ### Endpoints
 
