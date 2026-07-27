@@ -33,7 +33,7 @@ Everything needed to go from zero to Scout's first call. **No actual secrets in 
 
 ## First-run sequence (Phase 1)
 
-1. [ ] Run `CLICKUP_API_TOKEN=pk_xxx node scripts/setup-clickup.js` on your machine — it finds your leads list, creates the missing custom fields from [[20 - Architecture & Integration]] with the exact dropdown options, and prints the env vars. (Manual alternative: add the fields yourself; option names must match the enums exactly.)
+1. [x] ClickUp is set up ✅ — the **Acquisition Leads** list (`901616160330`) exists with all 12 custom fields and a sample lead. Verified end-to-end 2026-07-27 (field writes, dropdown resolution, call-log comments, idempotency). ⚠️ **Rotate the ClickUp API token** (Settings → Apps → API Token) since the setup one was shared in chat, and put the new one only in the host's env. Re-run `scripts/setup-clickup.js` any time to re-verify fields.
 2. [ ] Deploy the server (`npm start`); confirm `GET /` returns healthy on the public URL.
 3. [ ] ElevenLabs dashboard → **Agents** → create agent "Scout" using the config in [[01 - Agent - Scout (Lead Qualification)]] (first message, system prompt, voice, temperature).
 4. [ ] Add the webhook tools: `get_lead` → `POST https://<host>/agent/scout`, `update_lead_status` → `PATCH .../agent/scout/lead`, `book_followup` → `POST .../agent/scout/followup` — all with the `Authorization: Bearer <AGENT_TOOLS_TOKEN>` header.

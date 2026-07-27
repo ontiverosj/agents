@@ -56,9 +56,9 @@ flowchart TB
 
 ## ClickUp setup needed
 
-**A leads list** — its ID goes in `CLICKUP_LEADS_LIST_ID` (open the list in ClickUp; the ID is in the URL). Each lead is a task; the **task ID is the `lead_id`** used everywhere.
+**The leads list exists** ✅ — **Acquisition Leads** (`CLICKUP_LEADS_LIST_ID=901616160330`) in the *Jake Ontiveros - Personal Brand* space, created 2026-07-27 with all custom fields below already in place, plus a sample lead task ("Sample Lead — Acme HVAC (test)", safe to edit or delete). Each lead is a task; the **task ID is the `lead_id`** used everywhere.
 
-**Custom fields on that list** (names configurable via env; defaults shown):
+**Custom fields on that list** (all created; names configurable via env):
 
 | Field | Type | Notes |
 |---|---|---|

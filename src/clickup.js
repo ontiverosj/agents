@@ -120,8 +120,15 @@ const setCustomFieldsByName = async (taskId, values) => {
         if (def.type === 'date') {
             fieldValue = new Date(value).getTime();
         }
-        await client.post(`/task/${taskId}/field/${def.id}`, { value: fieldValue });
-        applied.push(name);
+        try {
+            await client.post(`/task/${taskId}/field/${def.id}`, { value: fieldValue });
+            applied.push(name);
+        } catch (err) {
+            // One bad value (e.g. malformed phone) must not block the other fields
+            console.warn(
+                `Failed to set "${name}" on ${taskId}: ${err.response?.data?.err || err.message}`
+            );
+        }
     }
     return applied;
 };
