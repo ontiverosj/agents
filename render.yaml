@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: everflow-agents-api
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: CLICKUP_API_TOKEN
+        sync: false
+      - key: CLICKUP_LEADS_LIST_ID
+        value: "901616160330"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_AGENT_ID_SCOUT
+        sync: false
+      - key: ELEVENLABS_PHONE_NUMBER_ID
+        sync: false
+      - key: ELEVENLABS_WEBHOOK_SECRET
+        sync: false
+      - key: AGENT_TOOLS_TOKEN
+        generateValue: true

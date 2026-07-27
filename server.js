@@ -1,56 +1,304 @@
 require('dotenv').config();
 const express = require('express');
-const { getLeadById } = require('./airtable');
+const {
+  FIELDS,
+  getLeadTask,
+  taskToLead,
+  setCustomFieldsByName,
+  createTaskComment,
+  hasCallLogComment,
+  getStaleLeads,
+} = require('./src/clickup');
+const { verifyWebhookSignature, startOutboundCall, submitBatchCall } = require('./src/elevenlabs');
+const { analyzeCallTranscript } = require('./src/claude');
+const leadsRouter = require('./src/index');
 
 const app = express();
-app.use(express.json());
+// Keep the raw body around — the ElevenLabs webhook signature is computed over it
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString('utf8');
+  },
+}));
 
 const PORT = process.env.PORT || 3000;
+
+// Bearer-token guard for agent tools and job triggers (these are public once
+// deployed). Only enforced once AGENT_TOOLS_TOKEN is set.
+const requireToolsToken = (req, res, next) => {
+  const token = process.env.AGENT_TOOLS_TOKEN;
+  if (!token) {
+    console.warn('AGENT_TOOLS_TOKEN not set — tool endpoints are unauthenticated');
+    return next();
+  }
+  const header = req.headers.authorization || '';
+  if (header !== `Bearer ${token}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  return next();
+};
+
+// lead_id is a ClickUp task ID (string)
+const validLeadId = (leadId) =>
+  typeof leadId === 'string' && /^[a-z0-9_-]+$/i.test(leadId);
 
 // Health check
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Agent API is running' });
 });
 
-// POST /agent/scout - Fetch lead by lead_id
-app.post('/agent/scout', async (req, res) => {
+// Lead listing from the ClickUp leads list
+app.use('/leads', requireToolsToken, leadsRouter);
+
+// POST /agent/scout - Fetch lead by lead_id (Scout's get_lead tool)
+app.post('/agent/scout', requireToolsToken, async (req, res) => {
   try {
     const { lead_id } = req.body;
-
-    // Validate input
-    if (lead_id === undefined || lead_id === null) {
-      return res.status(400).json({
-        error: 'Missing required field: lead_id'
-      });
+    if (!validLeadId(lead_id)) {
+      return res.status(400).json({ error: 'lead_id must be a ClickUp task ID string' });
     }
 
-    if (!Number.isInteger(lead_id)) {
-      return res.status(400).json({
-        error: 'lead_id must be an integer'
-      });
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
     }
-
-    // Fetch the lead
-    const lead = await getLeadById(lead_id);
-
-    if (!lead) {
-      return res.status(404).json({
-        error: `Lead with ID ${lead_id} not found`
-      });
-    }
-
-    // Return the lead data
-    return res.status(200).json({
-      success: true,
-      data: lead
-    });
-
+    return res.status(200).json({ success: true, data: taskToLead(task) });
   } catch (error) {
-    console.error('Error in /agent/scout:', error);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: error.message
+    console.error('Error in /agent/scout:', error.message);
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// PATCH /agent/scout/lead - Scout's update_lead_status tool
+// Body: { lead_id, seller_intent?, call_status?, revenue_range?, timeline?,
+//         reason_for_selling?, next_step?, dnc? }
+app.patch('/agent/scout/lead', requireToolsToken, async (req, res) => {
+  try {
+    const { lead_id, ...updates } = req.body;
+    if (!validLeadId(lead_id)) {
+      return res.status(400).json({ error: 'lead_id must be a ClickUp task ID string' });
+    }
+
+    const fieldMap = {
+      seller_intent: FIELDS.sellerIntent,
+      call_status: FIELDS.callStatus,
+      revenue_range: FIELDS.revenueRange,
+      timeline: FIELDS.timeline,
+      reason_for_selling: FIELDS.reasonForSelling,
+      next_step: FIELDS.nextStep,
+      dnc: FIELDS.dnc,
+    };
+    const fields = {};
+    for (const [key, column] of Object.entries(fieldMap)) {
+      if (updates[key] !== undefined) fields[column] = updates[key];
+    }
+    if (Object.keys(fields).length === 0) {
+      return res.status(400).json({ error: 'No updatable fields provided' });
+    }
+
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
+    }
+    const applied = await setCustomFieldsByName(lead_id, fields);
+    return res.status(200).json({ success: true, applied });
+  } catch (error) {
+    console.error('Error in PATCH /agent/scout/lead:', error.message);
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// POST /agent/scout/followup - Scout's book_followup tool
+// Body: { lead_id, followup_at (ISO datetime), notes? }
+app.post('/agent/scout/followup', requireToolsToken, async (req, res) => {
+  try {
+    const { lead_id, followup_at, notes } = req.body;
+    if (!validLeadId(lead_id) || !followup_at) {
+      return res.status(400).json({ error: 'Required fields: lead_id, followup_at' });
+    }
+    if (Number.isNaN(Date.parse(followup_at))) {
+      return res.status(400).json({ error: 'followup_at must be an ISO datetime' });
+    }
+
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
+    }
+
+    const nextStep = `Follow-up booked for ${followup_at}${notes ? ` — ${notes}` : ''}`;
+    await setCustomFieldsByName(lead_id, { [FIELDS.nextStep]: nextStep });
+    await createTaskComment(lead_id, `📅 ${nextStep}`);
+    return res.status(200).json({ success: true, data: { lead_id, followup_at, next_step: nextStep } });
+  } catch (error) {
+    console.error('Error in /agent/scout/followup:', error.message);
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// POST /webhooks/elevenlabs/post-call - Scribe: persist every finished call to ClickUp
+app.post('/webhooks/elevenlabs/post-call', async (req, res) => {
+  try {
+    const secret = process.env.ELEVENLABS_WEBHOOK_SECRET;
+    if (!verifyWebhookSignature(req.rawBody, req.headers['elevenlabs-signature'], secret)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    const event = req.body;
+    if (event.type && event.type !== 'post_call_transcription') {
+      return res.status(200).json({ skipped: event.type });
+    }
+    const data = event.data || {};
+    const conversationId = data.conversation_id;
+    if (!conversationId) {
+      return res.status(400).json({ error: 'Missing conversation_id' });
+    }
+
+    const dynamicVars = data.conversation_initiation_client_data?.dynamic_variables || {};
+    const leadId = dynamicVars.lead_id;
+    if (!leadId) {
+      console.warn(`Post-call webhook for ${conversationId} carried no lead_id — nothing to log`);
+      return res.status(200).json({ success: true, unmatched: true });
+    }
+
+    // Idempotency: webhook retries must not duplicate call-log comments
+    if (await hasCallLogComment(leadId, conversationId)) {
+      return res.status(200).json({ success: true, duplicate: true });
+    }
+
+    const transcriptText = (data.transcript || [])
+      .map((t) => `${t.role}: ${t.message}`)
+      .join('\n');
+
+    // Claude extracts qualification data from the transcript; fall back to
+    // ElevenLabs' own analysis if the Claude call fails or is declined
+    let analysis = null;
+    if (transcriptText && process.env.ANTHROPIC_API_KEY) {
+      try {
+        analysis = await analyzeCallTranscript(transcriptText, {
+          business_name: dynamicVars.business_name,
+          owner_name: dynamicVars.owner_name,
+        });
+      } catch (err) {
+        console.error('Claude transcript analysis failed:', err.message);
+      }
+    }
+    const elAnalysis = data.analysis || {};
+    const summary = analysis?.summary || elAnalysis.transcript_summary || '(no summary)';
+
+    // Update lead custom fields
+    const fields = {
+      [FIELDS.lastCalledAt]: new Date().toISOString(),
+      [FIELDS.callStatus]: 'completed',
+    };
+    if (analysis?.seller_intent) fields[FIELDS.sellerIntent] = analysis.seller_intent;
+    if (analysis?.revenue_range) fields[FIELDS.revenueRange] = analysis.revenue_range;
+    if (analysis?.timeline) fields[FIELDS.timeline] = analysis.timeline;
+    if (analysis?.reason_for_selling) fields[FIELDS.reasonForSelling] = analysis.reason_for_selling;
+    if (analysis?.next_step) fields[FIELDS.nextStep] = analysis.next_step;
+    if (analysis?.dnc_requested) fields[FIELDS.dnc] = true;
+    await setCustomFieldsByName(leadId, fields);
+
+    // Call log as a task comment (carries the conversation ID for idempotency)
+    const durationSecs = data.metadata?.call_duration_secs;
+    await createTaskComment(
+      leadId,
+      [
+        `📞 Call log — conversation ${conversationId}`,
+        `Agent: ${dynamicVars.agent_role || 'scout'} | Duration: ${durationSecs ?? '?'}s`,
+        `Summary: ${summary}`,
+        analysis?.seller_intent ? `Seller intent: ${analysis.seller_intent}` : null,
+        analysis?.next_step ? `Next step: ${analysis.next_step}` : null,
+        '',
+        'Transcript:',
+        transcriptText || '(empty)',
+      ]
+        .filter((line) => line !== null)
+        .join('\n')
+    );
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error in /webhooks/elevenlabs/post-call:', error.message);
+    // 500 → ElevenLabs retries; payload is logged for manual replay
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// POST /jobs/outbound-call - trigger a single Scout outbound call
+// Body: { lead_id }  (wire a ClickUp automation's webhook action at this endpoint)
+app.post('/jobs/outbound-call', requireToolsToken, async (req, res) => {
+  try {
+    const { lead_id } = req.body;
+    if (!validLeadId(lead_id)) {
+      return res.status(400).json({ error: 'lead_id must be a ClickUp task ID string' });
+    }
+
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
+    }
+    const lead = taskToLead(task);
+    if (lead.dnc) {
+      return res.status(409).json({ error: 'Lead is flagged do-not-call' });
+    }
+    if (!lead.phone) {
+      return res.status(422).json({ error: 'Lead has no phone number' });
+    }
+
+    const result = await startOutboundCall({
+      agentId: process.env.ELEVENLABS_AGENT_ID_SCOUT,
+      agentPhoneNumberId: process.env.ELEVENLABS_PHONE_NUMBER_ID,
+      toNumber: lead.phone,
+      dynamicVariables: {
+        lead_id: lead.lead_id,
+        business_name: lead.business_name || '',
+        owner_name: lead.owner_name || '',
+        industry: lead.industry || '',
+      },
     });
+
+    await setCustomFieldsByName(lead_id, { [FIELDS.callStatus]: 'queued' });
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error in /jobs/outbound-call:', error.message);
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// POST /jobs/sentry-sweep - batch re-engagement calls for stale leads
+// Body: { stale_days? } (default 14)
+app.post('/jobs/sentry-sweep', requireToolsToken, async (req, res) => {
+  try {
+    const staleDays = Number(req.body?.stale_days) || 14;
+    const leads = (await getStaleLeads(staleDays)).filter((l) => l.phone);
+    if (leads.length === 0) {
+      return res.status(200).json({ success: true, queued: 0 });
+    }
+
+    const recipients = leads.map((lead) => ({
+      phone_number: lead.phone,
+      conversation_initiation_client_data: {
+        dynamic_variables: {
+          lead_id: lead.lead_id,
+          business_name: lead.business_name || '',
+          owner_name: lead.owner_name || '',
+          last_call_summary: lead.next_step || '',
+          agent_role: 'sentry',
+        },
+      },
+    }));
+
+    const result = await submitBatchCall({
+      callName: `sentry-sweep-${new Date().toISOString().slice(0, 10)}`,
+      agentId: process.env.ELEVENLABS_AGENT_ID_SENTRY || process.env.ELEVENLABS_AGENT_ID_SCOUT,
+      agentPhoneNumberId: process.env.ELEVENLABS_PHONE_NUMBER_ID,
+      recipients,
+    });
+
+    return res.status(200).json({ success: true, queued: recipients.length, data: result });
+  } catch (error) {
+    console.error('Error in /jobs/sentry-sweep:', error.message);
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
 
