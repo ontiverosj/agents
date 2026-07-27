@@ -41,7 +41,7 @@ Everything needed to go from zero to Scout's first call. **No actual secrets in 
 6. [ ] Set up the **post-call webhook** in workspace settings → `https://<host>/webhooks/elevenlabs/post-call` with the shared secret. Verify a test call produces a comment + field updates on the lead task.
 7. [ ] Buy/assign a **phone number** to Scout; place a real test call yourself.
 8. [ ] Record agent ID + phone number here:
-	- Scout agent ID: `…`
+	- Scout agent ID: `agent_3901kyjnjcnwe00be0smwqdahz7g` ✅ (created 2026-07-27; voice: Roger; tools attached — re-run `scripts/setup-elevenlabs.js` with the real `SERVER_URL` after deploying to repoint the tools off the placeholder URL)
 	- Phone number: `…`
 
 ## Cost guardrails
