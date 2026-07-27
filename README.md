@@ -20,6 +20,11 @@ notes.
   workspace, picks the leads list, creates any missing custom fields (with
   the correct dropdown options), and prints the env vars to set. Run it
   locally: `CLICKUP_API_TOKEN=pk_xxx node scripts/setup-clickup.js`
+- `scripts/setup-elevenlabs.js` — one-time ElevenLabs setup: creates the
+  three webhook tools pointed at your server and the Scout agent wired to
+  them (idempotent — re-run to update after changing `SERVER_URL`). Run it
+  locally: `ELEVENLABS_API_KEY=xi_xxx SERVER_URL=https://your-host node
+  scripts/setup-elevenlabs.js`
 
 ### Endpoints
 

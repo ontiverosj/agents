@@ -34,9 +34,9 @@ Everything needed to go from zero to Scout's first call. **No actual secrets in 
 ## First-run sequence (Phase 1)
 
 1. [x] ClickUp is set up ✅ — the **Acquisition Leads** list (`901616160330`) exists with all 12 custom fields and a sample lead. Verified end-to-end 2026-07-27 (field writes, dropdown resolution, call-log comments, idempotency). ⚠️ **Rotate the ClickUp API token** (Settings → Apps → API Token) since the setup one was shared in chat, and put the new one only in the host's env. Re-run `scripts/setup-clickup.js` any time to re-verify fields.
-2. [ ] Deploy the server (`npm start`); confirm `GET /` returns healthy on the public URL.
-3. [ ] ElevenLabs dashboard → **Agents** → create agent "Scout" using the config in [[01 - Agent - Scout (Lead Qualification)]] (first message, system prompt, voice, temperature).
-4. [ ] Add the webhook tools: `get_lead` → `POST https://<host>/agent/scout`, `update_lead_status` → `PATCH .../agent/scout/lead`, `book_followup` → `POST .../agent/scout/followup` — all with the `Authorization: Bearer <AGENT_TOOLS_TOKEN>` header.
+2. [ ] Deploy the server (`npm start`); confirm `GET /` returns healthy on the public URL. (ngrok works while testing: `ngrok http 3000`.)
+3. [ ] Run `ELEVENLABS_API_KEY=xi_xxx SERVER_URL=https://<host> AGENT_TOOLS_TOKEN=<token> node scripts/setup-elevenlabs.js` — creates the three webhook tools and the Scout agent (per [[01 - Agent - Scout (Lead Qualification)]]) and prints `ELEVENLABS_AGENT_ID_SCOUT`. Idempotent; re-run after changing the server URL.
+4. [x] ~~Manually add the webhook tools~~ — handled by the script above.
 5. [ ] Test in the **playground**: run 5+ mock conversations (eager seller, hostile owner, wrong person, silence, "what's my business worth?" trap). Tune the prompt until all pass.
 6. [ ] Set up the **post-call webhook** in workspace settings → `https://<host>/webhooks/elevenlabs/post-call` with the shared secret. Verify a test call produces a comment + field updates on the lead task.
 7. [ ] Buy/assign a **phone number** to Scout; place a real test call yourself.
