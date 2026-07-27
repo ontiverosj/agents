@@ -25,31 +25,31 @@ Supporting notes:
 
 ## Roadmap
 
-### Phase 0 — Repo fixes (prerequisite)
+### Phase 0 — Repo fixes (prerequisite) ✅ code done
 The Railway server must actually boot before webhooks can land. Details in [[20 - Architecture & Integration]].
-- [ ] Point `package.json` `start` at `server.js` (currently boots `src/index.js`, a router with no `app.listen`)
-- [ ] Add `dotenv` and `airtable` to `dependencies`
-- [ ] Remove hardcoded `YOUR_BASE_ID` in `src/index.js`; unify table name to `Acquisition Leads`
-- [ ] Fix `getLeadById` to return a single record (it returns an array, so the 404 check never fires)
+- [x] Point `package.json` `start` at `server.js` (previously booted `src/index.js`, a router with no `app.listen`)
+- [x] Add `dotenv` and `airtable` to `dependencies`
+- [x] Remove hardcoded `YOUR_BASE_ID` in `src/index.js`; unify table name to `Acquisition Leads` (router now mounted at `/leads`)
+- [x] Fix `getLeadById` to return a single record (it returned an array, so the 404 check never fired)
 - [ ] Redeploy to Railway and verify `GET /` health check
 
 ### Phase 1 — Scout live
 - [ ] Create ElevenLabs account / API key
 - [ ] Build Scout agent in the ElevenLabs dashboard per [[01 - Agent - Scout (Lead Qualification)]]
-- [ ] Wire Scout's tools to the lead API (`POST /agent/scout`)
+- [x] Wire Scout's tools to the lead API — endpoints live: `POST /agent/scout`, `PATCH /agent/scout/lead`, `POST /agent/scout/followup`
 - [ ] Test conversations in the ElevenLabs playground
 - [ ] Attach a phone number (ElevenLabs native or Twilio)
 - [ ] First real inbound test call
 
 ### Phase 2 — Automations (Scribe)
-- [ ] Add `POST /webhooks/elevenlabs/post-call` endpoint with HMAC verification
-- [ ] Add call-log fields to Airtable (see [[20 - Architecture & Integration]])
-- [ ] Post-call webhook → summary + qualification data into Airtable
-- [ ] New-lead trigger → outbound Scout call (batch calling)
+- [x] Add `POST /webhooks/elevenlabs/post-call` endpoint with HMAC verification (`server.js`)
+- [ ] Add call-log fields + `Call Logs` table to Airtable (see [[20 - Architecture & Integration]])
+- [x] Post-call webhook → summary + qualification data into Airtable (code; needs the Airtable fields to exist)
+- [x] New-lead trigger endpoint → outbound Scout call: `POST /jobs/outbound-call` (needs Airtable automation pointed at it)
 
 ### Phase 3 — Sentry
-- [ ] Scheduled job scans Airtable for stale leads
-- [ ] Batch follow-up calls via ElevenLabs Batch Calling API
+- [x] Stale-lead sweep endpoint: `POST /jobs/sentry-sweep` (batch calling; needs a Railway cron to invoke it)
+- [ ] Scheduled cron configured on Railway
 - [ ] Reminder calls for booked appointments
 
 ### Phase 4 — Sage & Scholar + analytics

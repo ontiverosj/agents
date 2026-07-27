@@ -1,13 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const airtable = require('airtable');
+const { listLeads } = require('./airtable');
 
-const base = airtable.base('YOUR_BASE_ID');
-
-// Single GET / endpoint to fetch leads
+// GET / — list all leads
 router.get('/', async (req, res) => {
     try {
-        const records = await base('Leads').select().all();
+        const records = await listLeads();
         const leads = records.map(record => ({
             businessName: record.get('Business Name'),
             leadID: record.get('Lead ID'),
