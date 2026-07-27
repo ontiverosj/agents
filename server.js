@@ -1,13 +1,16 @@
 require('dotenv').config();
 const express = require('express');
 const {
-  getLeadById,
-  updateLeadByLeadId,
-  findCallLogByConversationId,
-  createCallLog,
+  FIELDS,
+  getLeadTask,
+  taskToLead,
+  setCustomFieldsByName,
+  createTaskComment,
+  hasCallLogComment,
   getStaleLeads,
-} = require('./src/airtable');
+} = require('./src/clickup');
 const { verifyWebhookSignature, startOutboundCall, submitBatchCall } = require('./src/elevenlabs');
+const { analyzeCallTranscript } = require('./src/claude');
 const leadsRouter = require('./src/index');
 
 const app = express();
@@ -20,9 +23,8 @@ app.use(express.json({
 
 const PORT = process.env.PORT || 3000;
 
-// Bearer-token guard for agent tools and job triggers (these are public on Railway).
-// Only enforced once AGENT_TOOLS_TOKEN is set, so existing integrations keep working
-// until the token is configured.
+// Bearer-token guard for agent tools and job triggers (these are public once
+// deployed). Only enforced once AGENT_TOOLS_TOKEN is set.
 const requireToolsToken = (req, res, next) => {
   const token = process.env.AGENT_TOOLS_TOKEN;
   if (!token) {
@@ -36,57 +38,55 @@ const requireToolsToken = (req, res, next) => {
   return next();
 };
 
+// lead_id is a ClickUp task ID (string)
+const validLeadId = (leadId) =>
+  typeof leadId === 'string' && /^[a-z0-9_-]+$/i.test(leadId);
+
 // Health check
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Agent API is running' });
 });
 
-// Lead listing (previously unreachable src/index.js router)
+// Lead listing from the ClickUp leads list
 app.use('/leads', requireToolsToken, leadsRouter);
 
 // POST /agent/scout - Fetch lead by lead_id (Scout's get_lead tool)
 app.post('/agent/scout', requireToolsToken, async (req, res) => {
   try {
     const { lead_id } = req.body;
-
-    if (lead_id === undefined || lead_id === null) {
-      return res.status(400).json({ error: 'Missing required field: lead_id' });
-    }
-    if (!Number.isInteger(lead_id)) {
-      return res.status(400).json({ error: 'lead_id must be an integer' });
+    if (!validLeadId(lead_id)) {
+      return res.status(400).json({ error: 'lead_id must be a ClickUp task ID string' });
     }
 
-    const lead = await getLeadById(lead_id);
-    if (!lead) {
-      return res.status(404).json({ error: `Lead with ID ${lead_id} not found` });
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
     }
-
-    return res.status(200).json({ success: true, data: lead });
+    return res.status(200).json({ success: true, data: taskToLead(task) });
   } catch (error) {
-    console.error('Error in /agent/scout:', error);
+    console.error('Error in /agent/scout:', error.message);
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
 
 // PATCH /agent/scout/lead - Scout's update_lead_status tool
-// Body: { lead_id, seller_intent?, call_status?, qualification_summary?,
-//         revenue_range?, timeline?, reason_for_selling?, next_step? }
+// Body: { lead_id, seller_intent?, call_status?, revenue_range?, timeline?,
+//         reason_for_selling?, next_step?, dnc? }
 app.patch('/agent/scout/lead', requireToolsToken, async (req, res) => {
   try {
     const { lead_id, ...updates } = req.body;
-    if (lead_id === undefined || lead_id === null) {
-      return res.status(400).json({ error: 'Missing required field: lead_id' });
+    if (!validLeadId(lead_id)) {
+      return res.status(400).json({ error: 'lead_id must be a ClickUp task ID string' });
     }
 
     const fieldMap = {
-      seller_intent: 'Seller Intent',
-      call_status: 'Call Status',
-      qualification_summary: 'Qualification Summary',
-      revenue_range: 'Revenue Range',
-      timeline: 'Timeline',
-      reason_for_selling: 'Reason for Selling',
-      next_step: 'Next Step',
-      dnc: 'DNC',
+      seller_intent: FIELDS.sellerIntent,
+      call_status: FIELDS.callStatus,
+      revenue_range: FIELDS.revenueRange,
+      timeline: FIELDS.timeline,
+      reason_for_selling: FIELDS.reasonForSelling,
+      next_step: FIELDS.nextStep,
+      dnc: FIELDS.dnc,
     };
     const fields = {};
     for (const [key, column] of Object.entries(fieldMap)) {
@@ -96,13 +96,14 @@ app.patch('/agent/scout/lead', requireToolsToken, async (req, res) => {
       return res.status(400).json({ error: 'No updatable fields provided' });
     }
 
-    const updated = await updateLeadByLeadId(lead_id, fields);
-    if (!updated) {
-      return res.status(404).json({ error: `Lead with ID ${lead_id} not found` });
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
     }
-    return res.status(200).json({ success: true, data: updated });
+    const applied = await setCustomFieldsByName(lead_id, fields);
+    return res.status(200).json({ success: true, applied });
   } catch (error) {
-    console.error('Error in PATCH /agent/scout/lead:', error);
+    console.error('Error in PATCH /agent/scout/lead:', error.message);
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
@@ -112,26 +113,29 @@ app.patch('/agent/scout/lead', requireToolsToken, async (req, res) => {
 app.post('/agent/scout/followup', requireToolsToken, async (req, res) => {
   try {
     const { lead_id, followup_at, notes } = req.body;
-    if (lead_id === undefined || lead_id === null || !followup_at) {
+    if (!validLeadId(lead_id) || !followup_at) {
       return res.status(400).json({ error: 'Required fields: lead_id, followup_at' });
     }
     if (Number.isNaN(Date.parse(followup_at))) {
       return res.status(400).json({ error: 'followup_at must be an ISO datetime' });
     }
 
-    const nextStep = `Follow-up booked for ${followup_at}${notes ? ` — ${notes}` : ''}`;
-    const updated = await updateLeadByLeadId(lead_id, { 'Next Step': nextStep });
-    if (!updated) {
-      return res.status(404).json({ error: `Lead with ID ${lead_id} not found` });
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
     }
+
+    const nextStep = `Follow-up booked for ${followup_at}${notes ? ` — ${notes}` : ''}`;
+    await setCustomFieldsByName(lead_id, { [FIELDS.nextStep]: nextStep });
+    await createTaskComment(lead_id, `📅 ${nextStep}`);
     return res.status(200).json({ success: true, data: { lead_id, followup_at, next_step: nextStep } });
   } catch (error) {
-    console.error('Error in /agent/scout/followup:', error);
+    console.error('Error in /agent/scout/followup:', error.message);
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
 
-// POST /webhooks/elevenlabs/post-call - Scribe: persist every finished call to Airtable
+// POST /webhooks/elevenlabs/post-call - Scribe: persist every finished call to ClickUp
 app.post('/webhooks/elevenlabs/post-call', async (req, res) => {
   try {
     const secret = process.env.ELEVENLABS_WEBHOOK_SECRET;
@@ -149,86 +153,114 @@ app.post('/webhooks/elevenlabs/post-call', async (req, res) => {
       return res.status(400).json({ error: 'Missing conversation_id' });
     }
 
-    // Idempotency: webhook retries must not duplicate call logs
-    if (await findCallLogByConversationId(conversationId)) {
+    const dynamicVars = data.conversation_initiation_client_data?.dynamic_variables || {};
+    const leadId = dynamicVars.lead_id;
+    if (!leadId) {
+      console.warn(`Post-call webhook for ${conversationId} carried no lead_id — nothing to log`);
+      return res.status(200).json({ success: true, unmatched: true });
+    }
+
+    // Idempotency: webhook retries must not duplicate call-log comments
+    if (await hasCallLogComment(leadId, conversationId)) {
       return res.status(200).json({ success: true, duplicate: true });
     }
 
-    const analysis = data.analysis || {};
-    const dynamicVars = data.conversation_initiation_client_data?.dynamic_variables || {};
-    const leadId = dynamicVars.lead_id;
     const transcriptText = (data.transcript || [])
       .map((t) => `${t.role}: ${t.message}`)
       .join('\n');
 
-    await createCallLog({
-      'Conversation ID': conversationId,
-      'Agent': dynamicVars.agent_role || 'scout',
-      'Called At': new Date((event.event_timestamp || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
-      'Duration (s)': data.metadata?.call_duration_secs ?? null,
-      'Outcome': analysis.call_successful || data.status || 'unknown',
-      'Transcript': transcriptText,
-      'Evaluation Results': JSON.stringify(analysis.evaluation_criteria_results || {}),
-      ...(leadId !== undefined ? { 'Lead ID Ref': String(leadId) } : {}),
-    });
-
-    if (leadId !== undefined) {
-      const collected = analysis.data_collection_results || {};
-      const fields = {
-        'Last Called At': new Date().toISOString(),
-        'Call Status': 'completed',
-      };
-      if (analysis.transcript_summary) fields['Qualification Summary'] = analysis.transcript_summary;
-      if (collected.seller_intent?.value) fields['Seller Intent'] = collected.seller_intent.value;
-      if (collected.revenue_range?.value) fields['Revenue Range'] = collected.revenue_range.value;
-      if (collected.timeline?.value) fields['Timeline'] = collected.timeline.value;
-      await updateLeadByLeadId(Number(leadId), fields);
+    // Claude extracts qualification data from the transcript; fall back to
+    // ElevenLabs' own analysis if the Claude call fails or is declined
+    let analysis = null;
+    if (transcriptText && process.env.ANTHROPIC_API_KEY) {
+      try {
+        analysis = await analyzeCallTranscript(transcriptText, {
+          business_name: dynamicVars.business_name,
+          owner_name: dynamicVars.owner_name,
+        });
+      } catch (err) {
+        console.error('Claude transcript analysis failed:', err.message);
+      }
     }
+    const elAnalysis = data.analysis || {};
+    const summary = analysis?.summary || elAnalysis.transcript_summary || '(no summary)';
+
+    // Update lead custom fields
+    const fields = {
+      [FIELDS.lastCalledAt]: new Date().toISOString(),
+      [FIELDS.callStatus]: 'completed',
+    };
+    if (analysis?.seller_intent) fields[FIELDS.sellerIntent] = analysis.seller_intent;
+    if (analysis?.revenue_range) fields[FIELDS.revenueRange] = analysis.revenue_range;
+    if (analysis?.timeline) fields[FIELDS.timeline] = analysis.timeline;
+    if (analysis?.reason_for_selling) fields[FIELDS.reasonForSelling] = analysis.reason_for_selling;
+    if (analysis?.next_step) fields[FIELDS.nextStep] = analysis.next_step;
+    if (analysis?.dnc_requested) fields[FIELDS.dnc] = true;
+    await setCustomFieldsByName(leadId, fields);
+
+    // Call log as a task comment (carries the conversation ID for idempotency)
+    const durationSecs = data.metadata?.call_duration_secs;
+    await createTaskComment(
+      leadId,
+      [
+        `📞 Call log — conversation ${conversationId}`,
+        `Agent: ${dynamicVars.agent_role || 'scout'} | Duration: ${durationSecs ?? '?'}s`,
+        `Summary: ${summary}`,
+        analysis?.seller_intent ? `Seller intent: ${analysis.seller_intent}` : null,
+        analysis?.next_step ? `Next step: ${analysis.next_step}` : null,
+        '',
+        'Transcript:',
+        transcriptText || '(empty)',
+      ]
+        .filter((line) => line !== null)
+        .join('\n')
+    );
 
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error('Error in /webhooks/elevenlabs/post-call:', error);
-    // 500 → ElevenLabs retries; payload is logged above for manual replay
+    console.error('Error in /webhooks/elevenlabs/post-call:', error.message);
+    // 500 → ElevenLabs retries; payload is logged for manual replay
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
 
 // POST /jobs/outbound-call - trigger a single Scout outbound call
-// Body: { lead_id }
+// Body: { lead_id }  (wire a ClickUp automation's webhook action at this endpoint)
 app.post('/jobs/outbound-call', requireToolsToken, async (req, res) => {
   try {
     const { lead_id } = req.body;
-    if (lead_id === undefined || lead_id === null) {
-      return res.status(400).json({ error: 'Missing required field: lead_id' });
+    if (!validLeadId(lead_id)) {
+      return res.status(400).json({ error: 'lead_id must be a ClickUp task ID string' });
     }
 
-    const lead = await getLeadById(lead_id);
-    if (!lead) {
-      return res.status(404).json({ error: `Lead with ID ${lead_id} not found` });
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
     }
-    if (lead['DNC']) {
+    const lead = taskToLead(task);
+    if (lead.dnc) {
       return res.status(409).json({ error: 'Lead is flagged do-not-call' });
     }
-    if (!lead['Phone']) {
+    if (!lead.phone) {
       return res.status(422).json({ error: 'Lead has no phone number' });
     }
 
     const result = await startOutboundCall({
       agentId: process.env.ELEVENLABS_AGENT_ID_SCOUT,
       agentPhoneNumberId: process.env.ELEVENLABS_PHONE_NUMBER_ID,
-      toNumber: lead['Phone'],
+      toNumber: lead.phone,
       dynamicVariables: {
-        lead_id: String(lead_id),
-        business_name: lead['Business Name'] || '',
-        owner_name: lead['Owner Name'] || '',
-        industry: lead['Industry'] || '',
+        lead_id: lead.lead_id,
+        business_name: lead.business_name || '',
+        owner_name: lead.owner_name || '',
+        industry: lead.industry || '',
       },
     });
 
-    await updateLeadByLeadId(lead_id, { 'Call Status': 'queued' });
+    await setCustomFieldsByName(lead_id, { [FIELDS.callStatus]: 'queued' });
     return res.status(200).json({ success: true, data: result });
   } catch (error) {
-    console.error('Error in /jobs/outbound-call:', error);
+    console.error('Error in /jobs/outbound-call:', error.message);
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });
@@ -238,19 +270,19 @@ app.post('/jobs/outbound-call', requireToolsToken, async (req, res) => {
 app.post('/jobs/sentry-sweep', requireToolsToken, async (req, res) => {
   try {
     const staleDays = Number(req.body?.stale_days) || 14;
-    const leads = (await getStaleLeads(staleDays)).filter((l) => l['Phone']);
+    const leads = (await getStaleLeads(staleDays)).filter((l) => l.phone);
     if (leads.length === 0) {
       return res.status(200).json({ success: true, queued: 0 });
     }
 
     const recipients = leads.map((lead) => ({
-      phone_number: lead['Phone'],
+      phone_number: lead.phone,
       conversation_initiation_client_data: {
         dynamic_variables: {
-          lead_id: String(lead['Lead ID'] ?? lead['ID'] ?? ''),
-          business_name: lead['Business Name'] || '',
-          owner_name: lead['Owner Name'] || '',
-          last_call_summary: lead['Qualification Summary'] || '',
+          lead_id: lead.lead_id,
+          business_name: lead.business_name || '',
+          owner_name: lead.owner_name || '',
+          last_call_summary: lead.next_step || '',
           agent_role: 'sentry',
         },
       },
@@ -265,7 +297,7 @@ app.post('/jobs/sentry-sweep', requireToolsToken, async (req, res) => {
 
     return res.status(200).json({ success: true, queued: recipients.length, data: result });
   } catch (error) {
-    console.error('Error in /jobs/sentry-sweep:', error);
+    console.error('Error in /jobs/sentry-sweep:', error.message);
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });

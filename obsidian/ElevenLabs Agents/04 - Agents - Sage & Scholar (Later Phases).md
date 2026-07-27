@@ -13,8 +13,8 @@ Scoping notes only. Neither gets built until Scout, Scribe, and Sentry are live 
 **What:** an assistant (text-first, voice optional) Jake can query about the pipeline: "Which open leads over $1M revenue haven't been called in 30 days?" "Summarize everything we know about lead 214."
 
 **How, roughly:**
-- Data source: Airtable (`Acquisition Leads` + `Call Logs` with transcripts accumulated by [[02 - Agent - Scribe (Post-Call Notes)]]).
-- Could be an ElevenLabs conversational agent with an Airtable-query tool, or just a Claude-powered endpoint on the existing Railway server. Decide when there's real data — the transcripts are the moat, the interface is swappable.
+- Data source: ClickUp (lead tasks + the call-log comments with transcripts accumulated by [[02 - Agent - Scribe (Post-Call Notes)]]).
+- Could be an ElevenLabs conversational agent with a ClickUp-query tool, or just a Claude-powered endpoint on the existing agents API. Decide when there's real data — the transcripts are the moat, the interface is swappable.
 
 **Prereq:** months of Call Log data. Value scales with call volume.
 

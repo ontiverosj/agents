@@ -13,7 +13,7 @@ Back to [[00 - ElevenLabs Agents Overview]].
 ## Two jobs
 
 ### 1. Stale-lead re-engagement
-- Trigger: scheduled job (cron on Railway, or Airtable automation) finds leads with `Seller Intent = open` and `Last Called At` older than N days (start with 14).
+- Trigger: a scheduled job hits `POST /jobs/sentry-sweep`, which finds lead tasks with `Seller Intent = open`, no `DNC`, and `Last Called At` older than N days (start with 14).
 - Sentry calls, references the earlier conversation ("we spoke a couple weeks ago…"), asks whether anything has changed, and offers to book time with Jake.
 - Outcome written back via the same post-call webhook → [[02 - Agent - Scribe (Post-Call Notes)]].
 
@@ -36,5 +36,5 @@ Back to [[00 - ElevenLabs Agents Overview]].
 
 ## Prereqs
 
-- Phase 2 complete (webhook + Airtable fields live) — see [[10 - Automations & Webhooks]] and [[20 - Architecture & Integration]].
-- A scheduler: Railway cron job hitting a new `POST /jobs/sentry-sweep` endpoint is the simplest start.
+- Phase 2 complete (webhook + ClickUp custom fields live) — see [[10 - Automations & Webhooks]] and [[20 - Architecture & Integration]].
+- A scheduler invoking `POST /jobs/sentry-sweep` daily: host cron, a GitHub Actions cron workflow, or a ClickUp recurring automation.

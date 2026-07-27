@@ -63,13 +63,13 @@ Passed per-call (from the outbound trigger or looked up via tools): `lead_id`, `
 
 ## Tools (webhooks Scout can call)
 
-All point at the Railway server — see [[10 - Automations & Webhooks]] for endpoint specs.
+All point at the agents API — see [[10 - Automations & Webhooks]] for endpoint specs. `lead_id` is the ClickUp task ID.
 
 | Tool name | Method/Path | Purpose |
 |---|---|---|
-| `get_lead` | `POST /agent/scout` (exists today) | Fetch lead record by `lead_id` at call start |
-| `update_lead_status` | `PATCH /agent/scout/lead` (new) | Write qualification fields mid/end of call |
-| `book_followup` | `POST /agent/scout/followup` (new) | Create a follow-up record / calendar hold |
+| `get_lead` | `POST /agent/scout` | Fetch the lead task by `lead_id` at call start |
+| `update_lead_status` | `PATCH /agent/scout/lead` | Write qualification custom fields mid/end of call |
+| `book_followup` | `POST /agent/scout/followup` | Set Next Step + log a follow-up comment on the task |
 
 ## Telephony options
 
@@ -84,4 +84,4 @@ All point at the Railway server — see [[10 - Automations & Webhooks]] for endp
 - Follow-up booked?
 - Any rule violations (valuation talk, offers)?
 
-These feed the post-call webhook payload that [[02 - Agent - Scribe (Post-Call Notes)]] writes to Airtable.
+These feed the post-call webhook payload that [[02 - Agent - Scribe (Post-Call Notes)]] analyzes with Claude and writes to ClickUp.

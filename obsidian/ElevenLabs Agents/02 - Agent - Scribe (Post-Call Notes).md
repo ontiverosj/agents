@@ -1,12 +1,12 @@
 ---
-tags: [elevenlabs, agent, scribe, automation]
+tags: [elevenlabs, agent, scribe, automation, claude, clickup]
 created: 2026-07-27
 status: phase-2
 ---
 
 # Scribe — Post-Call Notes Automation
 
-Scribe is not a conversational agent — it's the automation that turns every finished call into structured data in Airtable. No transcript should ever live only in the ElevenLabs dashboard.
+Scribe is not a conversational agent — it's the automation that turns every finished call into structured data in ClickUp, with **Claude doing the analysis**. No transcript should ever live only in the ElevenLabs dashboard.
 
 Back to [[00 - ElevenLabs Agents Overview]] · Flow details in [[10 - Automations & Webhooks]].
 
@@ -15,32 +15,39 @@ Back to [[00 - ElevenLabs Agents Overview]] · Flow details in [[10 - Automation
 ```mermaid
 sequenceDiagram
     participant EL as ElevenLabs
-    participant API as Railway API
-    participant AT as Airtable
+    participant API as Agents API
+    participant CL as Claude
+    participant CU as ClickUp
 
-    EL->>API: POST /webhooks/elevenlabs/post-call (transcript + analysis)
+    EL->>API: POST /webhooks/elevenlabs/post-call (transcript + metadata)
     API->>API: Verify HMAC signature
-    API->>AT: Update lead: summary, intent, revenue, next step
-    API->>AT: Create Call Log record (transcript link, duration, outcome)
+    API->>CL: Analyze transcript (structured output)
+    CL-->>API: summary, intent, revenue, timeline, next step, DNC
+    API->>CU: Update lead task custom fields
+    API->>CU: Post call-log comment (summary + transcript)
     API-->>EL: 200 OK
 ```
 
 ## What Scribe writes per call
 
-**On the lead record (`Acquisition Leads`):**
-- `Last Called At` — call timestamp
-- `Call Status` — completed / no-answer / voicemail / declined
+**Custom fields on the lead task:**
+- `Last Called At`, `Call Status` (completed)
 - `Seller Intent` — selling_now / open / not_interested / unknown
-- `Qualification Summary` — 2–4 sentence LLM summary from ElevenLabs call analysis
-- `Revenue Range`, `Timeline`, `Reason for Selling` — when captured
-- `Next Step` — e.g. "Follow-up booked 8/3 2pm"
+- `Revenue Range`, `Timeline`, `Reason for Selling`, `Next Step` — when Claude extracts them
+- `DNC` — checked automatically if the lead asked not to be contacted again
 
-**New record in a `Call Logs` table** (to be created — see [[20 - Architecture & Integration]]):
-- Link to lead, conversation ID, duration, full transcript (or transcript URL), evaluation results, audio recording URL.
+**Comment on the lead task** (the call log):
+- Conversation ID (doubles as the idempotency key), agent role, duration
+- Claude's 2–4 sentence summary
+- Full transcript
+
+## Why Claude, not just ElevenLabs' built-in analysis
+
+ElevenLabs returns a transcript summary, but Claude (`src/claude.js`) extracts **structured, schema-validated** qualification data (`seller_intent` as a strict enum, DNC detection, next steps) using JSON-schema structured outputs on `claude-opus-5`, with Anthropic's server-side refusal fallback enabled so a declined request automatically retries on a fallback model. If the Claude call fails or `ANTHROPIC_API_KEY` isn't set, the webhook falls back to ElevenLabs' own summary so no call is ever dropped.
 
 ## Implementation notes
 
-- Source of data: ElevenLabs **post-call webhook** — fires after each conversation with transcript, analysis (summary + evaluation criteria results), and metadata. Configure per-agent in the dashboard; set the shared secret as `ELEVENLABS_WEBHOOK_SECRET` on Railway.
-- Verify the `ElevenLabs-Signature` HMAC header before trusting the payload.
-- Idempotency: key writes on `conversation_id` so webhook retries don't duplicate Call Log records.
-- Failure handling: if the Airtable write fails, return 500 so ElevenLabs retries; log payload to console for manual replay.
+- Source of data: ElevenLabs **post-call webhook** — fires after each conversation with transcript and metadata. Configure per-agent in the dashboard; set the shared secret as `ELEVENLABS_WEBHOOK_SECRET`.
+- Verify the `ElevenLabs-Signature` HMAC header before trusting the payload (implemented in `src/elevenlabs.js`).
+- Idempotency: the call-log comment carries the `conversation_id`; retried webhooks are skipped if a comment with that ID already exists.
+- Failure handling: if the ClickUp write fails, return 500 so ElevenLabs retries; payload is logged for manual replay.
