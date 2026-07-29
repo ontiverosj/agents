@@ -49,6 +49,8 @@ const REQUIRED_FIELDS = [
   { name: 'DNC', type: 'checkbox' },
   // Safety gate: outbound calls refuse any lead without this checked
   { name: 'Contact Consent', type: 'checkbox' },
+  // Scholar writes web-research briefs here before calls
+  { name: 'Pre-Call Brief', type: 'text' },
 ];
 
 const ask = (question) => {
