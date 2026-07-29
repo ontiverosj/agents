@@ -199,7 +199,10 @@ const main = async () => {
         language: 'en',
         prompt: {
           prompt: SCOUT_PROMPT,
-          llm: process.env.ELEVENLABS_LLM || 'claude-sonnet-4-5',
+          // Leave the LLM at ElevenLabs' platform default unless overridden —
+          // some models (e.g. Claude variants) silently fail on plans where
+          // they aren't enabled, which shows up as the agent never replying
+          ...(process.env.ELEVENLABS_LLM ? { llm: process.env.ELEVENLABS_LLM } : {}),
           temperature: 0.4,
           tool_ids: toolIds,
         },
