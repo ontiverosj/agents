@@ -22,6 +22,7 @@ const FIELDS = {
     nextStep: process.env.CLICKUP_FIELD_NEXT_STEP || 'Next Step',
     dnc: process.env.CLICKUP_FIELD_DNC || 'DNC',
     contactConsent: process.env.CLICKUP_FIELD_CONTACT_CONSENT || 'Contact Consent',
+    preCallBrief: process.env.CLICKUP_FIELD_PRE_CALL_BRIEF || 'Pre-Call Brief',
     businessName: process.env.CLICKUP_FIELD_BUSINESS_NAME || 'Business Name',
     ownerName: process.env.CLICKUP_FIELD_OWNER_NAME || 'Owner Name',
     industry: process.env.CLICKUP_FIELD_INDUSTRY || 'Industry',
@@ -87,6 +88,7 @@ const taskToLead = (task) => ({
     next_step: getFieldValue(task, FIELDS.nextStep),
     dnc: getFieldValue(task, FIELDS.dnc) === true,
     contact_consent: getFieldValue(task, FIELDS.contactConsent) === true,
+    pre_call_brief: getFieldValue(task, FIELDS.preCallBrief),
     description: task.description || '',
 });
 

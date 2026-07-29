@@ -14,7 +14,7 @@ const {
   renameTask,
 } = require('./src/clickup');
 const { verifyWebhookSignature, startOutboundCall, submitBatchCall } = require('./src/elevenlabs');
-const { analyzeCallTranscript } = require('./src/claude');
+const { analyzeCallTranscript, askSage, generatePreCallBrief } = require('./src/claude');
 const leadsRouter = require('./src/index');
 
 const app = express();
@@ -263,6 +263,7 @@ app.post('/jobs/outbound-call', requireToolsToken, async (req, res) => {
         business_name: lead.business_name || '',
         owner_name: lead.owner_name || '',
         industry: lead.industry || '',
+        pre_call_brief: lead.pre_call_brief || '',
       },
     });
 
@@ -360,6 +361,72 @@ app.post('/jobs/sentry-sweep', requireToolsToken, async (req, res) => {
     return res.status(200).json({ success: true, status: 'approval_requested', task_id: task.id, proposed: leads.length });
   } catch (error) {
     console.error('Error in /jobs/sentry-sweep:', error.message);
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// POST /agent/sage - deal-analysis Q&A over the ClickUp pipeline
+// Body: { question }
+app.post('/agent/sage', requireToolsToken, async (req, res) => {
+  try {
+    const { question } = req.body;
+    if (!question || typeof question !== 'string') {
+      return res.status(400).json({ error: 'Missing required field: question' });
+    }
+
+    const { listLeads } = require('./src/clickup');
+    const leads = await listLeads();
+
+    // Pull call logs for the most recently called leads (bounded for context size)
+    const called = leads
+      .filter((l) => l.last_called_at)
+      .sort((a, b) => Number(b.last_called_at) - Number(a.last_called_at))
+      .slice(0, 10);
+    const callLogs = {};
+    for (const lead of called) {
+      const comments = await getTaskComments(lead.lead_id);
+      callLogs[lead.lead_id] = comments
+        .map((c) => c.comment_text || '')
+        .filter((t) => t.startsWith('📞'))
+        .slice(0, 5);
+    }
+
+    const answer = await askSage(question, { leads, call_logs: callLogs });
+    if (answer === null) {
+      return res.status(502).json({ error: 'Sage could not answer this question' });
+    }
+    return res.status(200).json({ success: true, answer });
+  } catch (error) {
+    console.error('Error in /agent/sage:', error.message);
+    return res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// POST /jobs/enrich-lead - Scholar: research the business and write a
+// pre-call brief onto the lead task. Wire a ClickUp automation at this
+// endpoint (e.g. when a lead is created) or call it before queueing a call.
+// Body: { lead_id }
+app.post('/jobs/enrich-lead', requireToolsToken, async (req, res) => {
+  try {
+    const { lead_id } = req.body;
+    if (!validLeadId(lead_id)) {
+      return res.status(400).json({ error: 'lead_id must be a ClickUp task ID string' });
+    }
+    const task = await getLeadTask(lead_id);
+    if (!task) {
+      return res.status(404).json({ error: `Lead ${lead_id} not found` });
+    }
+
+    const brief = await generatePreCallBrief(taskToLead(task));
+    if (brief === null) {
+      return res.status(502).json({ error: 'Could not generate a brief for this lead' });
+    }
+
+    await setCustomFieldsByName(lead_id, { [FIELDS.preCallBrief]: brief });
+    await createTaskComment(lead_id, `🔎 Pre-call brief (Scholar)\n\n${brief}`);
+    return res.status(200).json({ success: true, brief });
+  } catch (error) {
+    console.error('Error in /jobs/enrich-lead:', error.message);
     return res.status(500).json({ error: 'Internal server error', message: error.message });
   }
 });

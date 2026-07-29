@@ -36,8 +36,10 @@ notes.
 | `PATCH /agent/scout/lead` | Scout tool: update qualification custom fields |
 | `POST /agent/scout/followup` | Scout tool: book a follow-up |
 | `POST /webhooks/elevenlabs/post-call` | Scribe: Claude analysis → ClickUp fields + call-log comment |
-| `POST /jobs/outbound-call` | Trigger one outbound Scout call (`{ lead_id }`) — wire a ClickUp Automation here |
-| `POST /jobs/sentry-sweep` | Batch re-engagement calls for stale leads — invoke on a schedule |
+| `POST /jobs/outbound-call` | Trigger one outbound Scout call (`{ lead_id }`) — wire a ClickUp Automation here; requires Contact Consent |
+| `POST /jobs/sentry-sweep` | Human-approved batch re-engagement: proposes a ClickUp approval task, dials only after an "approve" comment |
+| `POST /agent/sage` | Sage: answer a question about the pipeline (`{ question }`) |
+| `POST /jobs/enrich-lead` | Scholar: web-research the lead and write a Pre-Call Brief (`{ lead_id }`) |
 
 All endpoints except `GET /` and the webhook require `Authorization: Bearer
 $AGENT_TOOLS_TOKEN` once that env var is set. The webhook is authenticated by

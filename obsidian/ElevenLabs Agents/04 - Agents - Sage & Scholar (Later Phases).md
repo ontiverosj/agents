@@ -1,30 +1,31 @@
 ---
-tags: [elevenlabs, agent, sage, scholar, backlog]
+tags: [elevenlabs, agent, sage, scholar]
 created: 2026-07-27
-status: backlog
+status: shipped
 ---
 
-# Sage & Scholar — Later-Phase Agents
+# Sage & Scholar
 
-Scoping notes only. Neither gets built until Scout, Scribe, and Sentry are live and producing data. Back to [[00 - ElevenLabs Agents Overview]].
+Both shipped as Claude-powered endpoints on the agents API. Back to [[00 - ElevenLabs Agents Overview]].
 
-## Sage — Deal Analysis Assistant
+## Sage — Deal Analysis Assistant ✅
 
-**What:** an assistant (text-first, voice optional) Jake can query about the pipeline: "Which open leads over $1M revenue haven't been called in 30 days?" "Summarize everything we know about lead 214."
+**What:** ask questions about the pipeline in plain English: *"Which open leads haven't been called in 30 days?"*, *"Summarize everything we know about Acme HVAC."*
 
-**How, roughly:**
-- Data source: ClickUp (lead tasks + the call-log comments with transcripts accumulated by [[02 - Agent - Scribe (Post-Call Notes)]]).
-- Could be an ElevenLabs conversational agent with a ClickUp-query tool, or just a Claude-powered endpoint on the existing agents API. Decide when there's real data — the transcripts are the moat, the interface is swappable.
+**How it works:** `POST /agent/sage` with `{ "question": "..." }` (bearer token required). The server gathers all lead tasks plus the call-log comments of the 10 most recently called leads, and Claude answers strictly from that data — it's instructed never to invent leads or numbers.
 
-**Prereq:** months of Call Log data. Value scales with call volume.
+```bash
+curl -X POST https://<host>/agent/sage \
+  -H "Authorization: Bearer $AGENT_TOOLS_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"question": "Which leads look most promising and why?"}'
+```
 
-## Scholar — Pre-Call Research & Enrichment
+Answers get sharper as call volume grows — the transcripts in the call logs are the moat.
 
-**What:** before Scout or Sentry dials, Scholar enriches the lead: website, industry classification, size signals, news, registry data — and writes a one-paragraph pre-call brief to the lead record. Scout receives it as a dynamic variable, so calls open smart ("I saw you've been running the shop since 2009…").
+## Scholar — Pre-Call Research & Enrichment ✅
 
-**How, roughly:**
-- Automation triggered when a lead enters the calling queue.
-- Enrichment sources: web search/scrape, plus any data tools already connected (Apollo, Clay, Semrush are available as integrations).
-- Output fields: `Pre-Call Brief`, `Enrichment Data` (JSON), `Enriched At`.
+**What:** before a call, Scholar researches the business on the web (Claude with server-side web search) and writes a ≤150-word **Pre-Call Brief** to the lead task — field + a 🔎 comment. Outbound Scout calls automatically receive it as the `pre_call_brief` dynamic variable, so calls open smart ("I saw you've been running the shop since 2009…") without ever revealing the research.
 
-**Prereq:** Phase 2 outbound trigger flow exists, so there's a queue to hook into ([[10 - Automations & Webhooks]]).
+**How it works:** `POST /jobs/enrich-lead` with `{ "lead_id": "..." }`. Wire a ClickUp Automation at it (e.g. *when a task is created → Call webhook*) or hit it manually before queueing a call. If Claude can't confidently identify the business online, the brief says so rather than guessing.
+
+**Later ideas:** enrich from Apollo/Clay/Semrush connectors; a voice interface for Sage.

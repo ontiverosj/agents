@@ -55,6 +55,7 @@ Supporting notes:
 - [ ] Reminder calls for booked appointments
 
 ### Phase 4 — Sage & Scholar + analytics
-- [ ] Sage: deal Q&A assistant over accumulated call data (Claude over ClickUp tasks + comments)
-- [ ] Scholar: pre-call enrichment pipeline
+- [x] Sage: deal Q&A over the pipeline — `POST /agent/sage {question}` (Claude over lead tasks + call-log comments)
+- [x] Scholar: pre-call web research — `POST /jobs/enrich-lead {lead_id}` writes a Pre-Call Brief; outbound Scout calls receive it as a dynamic variable
+- [ ] ClickUp automation: new lead → enrich-lead webhook (optional)
 - [ ] Dashboard: call outcomes, qualification rates, cost per qualified lead
