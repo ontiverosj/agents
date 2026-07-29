@@ -149,6 +149,38 @@ book_followup only after the caller agrees to a specific date and time.`;
 const FIRST_MESSAGE =
   "Hi, this is Scout calling on behalf of Everflow Acquisitions — am I speaking with the owner of {{business_name}}?";
 
+// Sentry keeps the "Scout" persona on the phone; the different mission is
+// re-engagement of leads that went quiet (see obsidian note 03)
+const SENTRY_PROMPT = `You are Scout, a friendly, professional acquisitions associate for Everflow
+Acquisitions, making a brief follow-up call to a business owner you (or a
+colleague) spoke with before about potentially selling their business.
+
+Context from the earlier conversation is in the last_call_summary dynamic
+variable — reference it naturally ("when we spoke a while back...") but don't
+recite it.
+
+Style: warm, brief, low-pressure. This is a check-in, not a pitch.
+
+Objectives:
+1. Confirm you're speaking with {{owner_name}}.
+2. Ask whether anything has changed about their thinking on selling.
+3. If interest has grown, offer to book a call with Jake (book_followup).
+4. If nothing changed, thank them and close politely.
+
+Hard rules:
+- Never state a valuation, price range, or offer.
+- If the caller sounds annoyed, apologize, offer to remove them from contact
+  (update_lead_status with dnc=true if they accept), and end quickly.
+  Preserving goodwill matters more than one more data point.
+- If asked whether you are an AI, say yes plainly and continue helpfully.
+- Keep calls under 4 minutes.
+
+Tools: call get_lead at the start when lead_id is present. Always call
+update_lead_status before ending the call.`;
+
+const SENTRY_FIRST_MESSAGE =
+  "Hi {{owner_name}}, this is Scout from Everflow Acquisitions — we spoke a while back about {{business_name}}. Do you have a quick minute?";
+
 const listAll = async (path, key) => {
   const { data } = await api.get(path);
   return data[key] || [];
@@ -190,49 +222,70 @@ const main = async () => {
     console.log(`  voice: ${pick.name} (${voiceId}) — override with ELEVENLABS_VOICE_ID`);
   }
 
-  // 3. Scout agent (create or update, matched by name)
-  const agentConfig = {
-    name: 'Scout',
-    conversation_config: {
-      agent: {
-        first_message: FIRST_MESSAGE,
-        language: 'en',
-        prompt: {
-          prompt: SCOUT_PROMPT,
-          // Leave the LLM at ElevenLabs' platform default unless overridden —
-          // some models (e.g. Claude variants) silently fail on plans where
-          // they aren't enabled, which shows up as the agent never replying
-          ...(process.env.ELEVENLABS_LLM ? { llm: process.env.ELEVENLABS_LLM } : {}),
-          temperature: 0.4,
-          tool_ids: toolIds,
+  // 3. Agents (create or update, matched by name)
+  const AGENTS = [
+    {
+      name: 'Scout',
+      envVar: 'ELEVENLABS_AGENT_ID_SCOUT',
+      first_message: FIRST_MESSAGE,
+      prompt: SCOUT_PROMPT,
+      max_duration_seconds: 600,
+    },
+    {
+      name: 'Sentry',
+      envVar: 'ELEVENLABS_AGENT_ID_SENTRY',
+      first_message: SENTRY_FIRST_MESSAGE,
+      prompt: SENTRY_PROMPT,
+      max_duration_seconds: 300,
+    },
+  ];
+
+  const agentIds = {};
+  for (const spec of AGENTS) {
+    const agentConfig = {
+      name: spec.name,
+      conversation_config: {
+        agent: {
+          first_message: spec.first_message,
+          language: 'en',
+          prompt: {
+            prompt: spec.prompt,
+            // Leave the LLM at ElevenLabs' platform default unless overridden —
+            // some models (e.g. Claude variants) silently fail on plans where
+            // they aren't enabled, which shows up as the agent never replying
+            ...(process.env.ELEVENLABS_LLM ? { llm: process.env.ELEVENLABS_LLM } : {}),
+            temperature: 0.4,
+            tool_ids: toolIds,
+          },
+        },
+        tts: {
+          voice_id: voiceId,
+          stability: 0.5,
+          similarity_boost: 0.75,
+        },
+        conversation: {
+          max_duration_seconds: spec.max_duration_seconds,
         },
       },
-      tts: {
-        voice_id: voiceId,
-        stability: 0.5,
-        similarity_boost: 0.75,
-      },
-      conversation: {
-        max_duration_seconds: 600,
-      },
-    },
-  };
+    };
 
-  const { data: agentList } = await api.get('/v1/convai/agents', { params: { search: 'Scout' } });
-  const existingAgent = (agentList.agents || []).find((a) => a.name === 'Scout');
-  let agentId;
-  if (existingAgent) {
-    agentId = existingAgent.agent_id;
-    await api.patch(`/v1/convai/agents/${agentId}`, agentConfig);
-    console.log(`  ~ agent Scout (updated: ${agentId})`);
-  } else {
-    const { data } = await api.post('/v1/convai/agents/create', agentConfig);
-    agentId = data.agent_id;
-    console.log(`  + agent Scout (created: ${agentId})`);
+    const { data: agentList } = await api.get('/v1/convai/agents', { params: { search: spec.name } });
+    const existingAgent = (agentList.agents || []).find((a) => a.name === spec.name);
+    if (existingAgent) {
+      agentIds[spec.envVar] = existingAgent.agent_id;
+      await api.patch(`/v1/convai/agents/${existingAgent.agent_id}`, agentConfig);
+      console.log(`  ~ agent ${spec.name} (updated: ${existingAgent.agent_id})`);
+    } else {
+      const { data } = await api.post('/v1/convai/agents/create', agentConfig);
+      agentIds[spec.envVar] = data.agent_id;
+      console.log(`  + agent ${spec.name} (created: ${data.agent_id})`);
+    }
   }
 
   console.log('\nDone. Set these env vars on your server host:');
-  console.log(`  ELEVENLABS_AGENT_ID_SCOUT=${agentId}`);
+  for (const [envVar, id] of Object.entries(agentIds)) {
+    console.log(`  ${envVar}=${id}`);
+  }
   console.log('\nRemaining manual steps (ElevenLabs dashboard):');
   console.log('  1. Agents → Scout → test in the playground (pass lead_id/business_name as dynamic variables).');
   console.log('  2. Workspace Settings → Post-call webhook →');
