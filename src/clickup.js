@@ -21,6 +21,7 @@ const FIELDS = {
     reasonForSelling: process.env.CLICKUP_FIELD_REASON || 'Reason for Selling',
     nextStep: process.env.CLICKUP_FIELD_NEXT_STEP || 'Next Step',
     dnc: process.env.CLICKUP_FIELD_DNC || 'DNC',
+    contactConsent: process.env.CLICKUP_FIELD_CONTACT_CONSENT || 'Contact Consent',
     businessName: process.env.CLICKUP_FIELD_BUSINESS_NAME || 'Business Name',
     ownerName: process.env.CLICKUP_FIELD_OWNER_NAME || 'Owner Name',
     industry: process.env.CLICKUP_FIELD_INDUSTRY || 'Industry',
@@ -85,6 +86,7 @@ const taskToLead = (task) => ({
     reason_for_selling: getFieldValue(task, FIELDS.reasonForSelling),
     next_step: getFieldValue(task, FIELDS.nextStep),
     dnc: getFieldValue(task, FIELDS.dnc) === true,
+    contact_consent: getFieldValue(task, FIELDS.contactConsent) === true,
     description: task.description || '',
 });
 
@@ -156,16 +158,39 @@ const hasCallLogComment = async (taskId, conversationId) => {
 
 // ---- Sentry sweep ----
 
-// Leads still open, not DNC, last called more than `staleDays` ago (or never)
+// Leads still open, consented to contact, not DNC, last called more than
+// `staleDays` ago (or never)
 const getStaleLeads = async (staleDays = 14) => {
     const leads = await listLeads();
     const cutoff = Date.now() - staleDays * 24 * 60 * 60 * 1000;
     return leads.filter((lead) => {
         if (lead.dnc) return false;
+        if (!lead.contact_consent) return false;
         if (lead.seller_intent && lead.seller_intent !== 'open') return false;
         if (!lead.last_called_at) return true;
         return Number(lead.last_called_at) < cutoff;
     });
+};
+
+// ---- Approval tasks (human sign-off for outbound sweeps) ----
+
+const createApprovalTask = async (name, description) => {
+    const { data } = await client.post(`/list/${LEADS_LIST_ID}/task`, {
+        name,
+        description,
+    });
+    return data;
+};
+
+const findTaskByNamePrefix = async (prefix) => {
+    const { data } = await client.get(`/list/${LEADS_LIST_ID}/task`, {
+        params: { include_closed: false },
+    });
+    return (data.tasks || []).find((t) => t.name.startsWith(prefix)) || null;
+};
+
+const renameTask = async (taskId, name) => {
+    await client.put(`/task/${taskId}`, { name });
 };
 
 module.exports = {
@@ -175,6 +200,10 @@ module.exports = {
     listLeads,
     setCustomFieldsByName,
     createTaskComment,
+    getTaskComments,
     hasCallLogComment,
     getStaleLeads,
+    createApprovalTask,
+    findTaskByNamePrefix,
+    renameTask,
 };

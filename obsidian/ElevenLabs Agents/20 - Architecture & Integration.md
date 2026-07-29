@@ -74,6 +74,7 @@ flowchart TB
 | Reason for Selling | Text | |
 | Next Step | Text | |
 | DNC | Checkbox | Excludes the lead from all calling |
+| Contact Consent | Checkbox | **Safety gate** — outbound endpoints refuse any lead without this checked; only check it for leads with a documented opt-in (TCPA) |
 
 Call logs need no extra list — each call lands as a **comment on the lead task** (conversation ID + Claude summary + transcript), so the full history reads inline in ClickUp.
 

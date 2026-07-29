@@ -24,3 +24,22 @@ services:
         sync: false
       - key: AGENT_TOOLS_TOKEN
         generateValue: true
+      - key: ELEVENLABS_AGENT_ID_SENTRY
+        sync: false
+
+  # Daily Sentry re-engagement sweep: weekdays 16:00 UTC (~11am ET, inside
+  # the allowed calling window). Set AGENT_TOOLS_TOKEN to the same value as
+  # the web service's.
+  - type: cron
+    name: sentry-sweep
+    runtime: node
+    schedule: "0 16 * * 1-5"
+    buildCommand: npm install
+    startCommand: node scripts/run-sentry-sweep.js
+    envVars:
+      - key: SERVER_URL
+        value: https://everflow-agents-api.onrender.com
+      - key: AGENT_TOOLS_TOKEN
+        sync: false
+      - key: SENTRY_STALE_DAYS
+        value: "14"

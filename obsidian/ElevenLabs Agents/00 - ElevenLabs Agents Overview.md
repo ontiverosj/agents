@@ -49,7 +49,9 @@ Supporting notes:
 
 ### Phase 3 — Sentry
 - [x] Stale-lead sweep endpoint: `POST /jobs/sentry-sweep` (batch calling)
-- [ ] Scheduler invoking the sweep daily (host cron, GitHub Actions cron, or ClickUp recurring automation)
+- [x] Sentry agent config in `scripts/setup-elevenlabs.js` (re-engagement persona, 4-min cap, DNC-on-annoyance) — run the script to create it and set `ELEVENLABS_AGENT_ID_SENTRY`
+- [x] Scheduler: Render cron service `sentry-sweep` in `render.yaml` (weekdays 16:00 UTC via `scripts/run-sentry-sweep.js`)
+- [x] Safety gates: `Contact Consent` checkbox required for any outbound call; sweeps propose a ClickUp approval task and only dial after a human "approve" comment
 - [ ] Reminder calls for booked appointments
 
 ### Phase 4 — Sage & Scholar + analytics

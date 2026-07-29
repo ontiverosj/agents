@@ -6,8 +6,12 @@ const {
   taskToLead,
   setCustomFieldsByName,
   createTaskComment,
+  getTaskComments,
   hasCallLogComment,
   getStaleLeads,
+  createApprovalTask,
+  findTaskByNamePrefix,
+  renameTask,
 } = require('./src/clickup');
 const { verifyWebhookSignature, startOutboundCall, submitBatchCall } = require('./src/elevenlabs');
 const { analyzeCallTranscript } = require('./src/claude');
@@ -241,6 +245,11 @@ app.post('/jobs/outbound-call', requireToolsToken, async (req, res) => {
     if (lead.dnc) {
       return res.status(409).json({ error: 'Lead is flagged do-not-call' });
     }
+    if (!lead.contact_consent) {
+      return res.status(403).json({
+        error: 'Lead has no recorded contact consent — check the Contact Consent field on the ClickUp task before calling',
+      });
+    }
     if (!lead.phone) {
       return res.status(422).json({ error: 'Lead has no phone number' });
     }
@@ -265,37 +274,90 @@ app.post('/jobs/outbound-call', requireToolsToken, async (req, res) => {
   }
 });
 
-// POST /jobs/sentry-sweep - batch re-engagement calls for stale leads
+// POST /jobs/sentry-sweep - human-approved batch re-engagement calls.
+// No call is ever placed without sign-off:
+//   1st run: finds eligible leads (consented, not DNC, stale) and creates a
+//            "📋 Sentry sweep approval" task in ClickUp listing them.
+//   Jake reviews and comments "approve" (or "skip") on that task.
+//   Next run: executes the approved batch (re-checking eligibility), then
+//             renames the task ✅ so it can't run twice.
 // Body: { stale_days? } (default 14)
+const APPROVAL_PREFIX = '📋 Sentry sweep approval';
+
 app.post('/jobs/sentry-sweep', requireToolsToken, async (req, res) => {
   try {
     const staleDays = Number(req.body?.stale_days) || 14;
-    const leads = (await getStaleLeads(staleDays)).filter((l) => l.phone);
-    if (leads.length === 0) {
-      return res.status(200).json({ success: true, queued: 0 });
+
+    const pending = await findTaskByNamePrefix(APPROVAL_PREFIX);
+    if (pending) {
+      const comments = await getTaskComments(pending.id);
+      const decision = comments
+        .map((c) => (c.comment_text || '').trim().toLowerCase())
+        .find((t) => /^(approve|approved|yes|go)\b/.test(t) || /^(skip|deny|no|cancel)\b/.test(t));
+
+      if (!decision) {
+        return res.status(200).json({ success: true, status: 'awaiting_approval', task_id: pending.id });
+      }
+      if (/^(skip|deny|no|cancel)\b/.test(decision)) {
+        await renameTask(pending.id, `🚫 Sentry sweep skipped — ${pending.name.slice(APPROVAL_PREFIX.length).trim()}`);
+        await createTaskComment(pending.id, 'Sweep skipped per your comment — no calls placed.');
+        return res.status(200).json({ success: true, status: 'skipped' });
+      }
+
+      // Approved: re-check eligibility at execution time (consent/DNC may have changed)
+      const idsMatch = (pending.description || pending.text_content || '').match(/lead_ids:\s*(\[[^\]]*\])/);
+      const approvedIds = idsMatch ? JSON.parse(idsMatch[1]) : [];
+      const eligible = (await getStaleLeads(staleDays)).filter(
+        (l) => l.phone && approvedIds.includes(l.lead_id)
+      );
+      if (eligible.length === 0) {
+        await renameTask(pending.id, `✅ Sentry sweep executed (0 calls) — ${new Date().toISOString().slice(0, 10)}`);
+        await createTaskComment(pending.id, 'Approved, but no leads were still eligible at execution time.');
+        return res.status(200).json({ success: true, queued: 0 });
+      }
+
+      const recipients = eligible.map((lead) => ({
+        phone_number: lead.phone,
+        conversation_initiation_client_data: {
+          dynamic_variables: {
+            lead_id: lead.lead_id,
+            business_name: lead.business_name || '',
+            owner_name: lead.owner_name || '',
+            last_call_summary: lead.next_step || '',
+            agent_role: 'sentry',
+          },
+        },
+      }));
+
+      const result = await submitBatchCall({
+        callName: `sentry-sweep-${new Date().toISOString().slice(0, 10)}`,
+        agentId: process.env.ELEVENLABS_AGENT_ID_SENTRY || process.env.ELEVENLABS_AGENT_ID_SCOUT,
+        agentPhoneNumberId: process.env.ELEVENLABS_PHONE_NUMBER_ID,
+        recipients,
+      });
+
+      await renameTask(pending.id, `✅ Sentry sweep executed (${recipients.length} calls) — ${new Date().toISOString().slice(0, 10)}`);
+      await createTaskComment(pending.id, `Queued ${recipients.length} re-engagement call(s).`);
+      return res.status(200).json({ success: true, queued: recipients.length, data: result });
     }
 
-    const recipients = leads.map((lead) => ({
-      phone_number: lead.phone,
-      conversation_initiation_client_data: {
-        dynamic_variables: {
-          lead_id: lead.lead_id,
-          business_name: lead.business_name || '',
-          owner_name: lead.owner_name || '',
-          last_call_summary: lead.next_step || '',
-          agent_role: 'sentry',
-        },
-      },
-    }));
+    // No pending approval: propose one
+    const leads = (await getStaleLeads(staleDays)).filter((l) => l.phone);
+    if (leads.length === 0) {
+      return res.status(200).json({ success: true, status: 'no_eligible_leads', queued: 0 });
+    }
 
-    const result = await submitBatchCall({
-      callName: `sentry-sweep-${new Date().toISOString().slice(0, 10)}`,
-      agentId: process.env.ELEVENLABS_AGENT_ID_SENTRY || process.env.ELEVENLABS_AGENT_ID_SCOUT,
-      agentPhoneNumberId: process.env.ELEVENLABS_PHONE_NUMBER_ID,
-      recipients,
-    });
+    const lines = leads.map((l) => `- ${l.business_name || l.name} (${l.owner_name || 'owner unknown'}) — last called: ${l.last_called_at ? new Date(Number(l.last_called_at)).toISOString().slice(0, 10) : 'never'}`);
+    const task = await createApprovalTask(
+      `${APPROVAL_PREFIX} — ${new Date().toISOString().slice(0, 10)} (${leads.length} lead${leads.length === 1 ? '' : 's'})`,
+      `Sentry wants to place re-engagement calls to these leads (all have Contact Consent, no DNC, stale ${staleDays}+ days):\n\n` +
+        `${lines.join('\n')}\n\n` +
+        `To APPROVE: comment "approve" on this task.\nTo SKIP: comment "skip".\n` +
+        `Calls go out on the next scheduled sweep (or trigger the sentry-sweep cron manually).\n\n` +
+        `lead_ids: ${JSON.stringify(leads.map((l) => l.lead_id))}`
+    );
 
-    return res.status(200).json({ success: true, queued: recipients.length, data: result });
+    return res.status(200).json({ success: true, status: 'approval_requested', task_id: task.id, proposed: leads.length });
   } catch (error) {
     console.error('Error in /jobs/sentry-sweep:', error.message);
     return res.status(500).json({ error: 'Internal server error', message: error.message });
