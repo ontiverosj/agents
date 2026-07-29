@@ -47,6 +47,8 @@ const REQUIRED_FIELDS = [
   { name: 'Reason for Selling', type: 'text' },
   { name: 'Next Step', type: 'text' },
   { name: 'DNC', type: 'checkbox' },
+  // Safety gate: outbound calls refuse any lead without this checked
+  { name: 'Contact Consent', type: 'checkbox' },
 ];
 
 const ask = (question) => {

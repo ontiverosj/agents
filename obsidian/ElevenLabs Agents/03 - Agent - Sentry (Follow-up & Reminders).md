@@ -12,8 +12,9 @@ Back to [[00 - ElevenLabs Agents Overview]].
 
 ## Two jobs
 
-### 1. Stale-lead re-engagement
-- Trigger: a scheduled job hits `POST /jobs/sentry-sweep`, which finds lead tasks with `Seller Intent = open`, no `DNC`, and `Last Called At` older than N days (start with 14).
+### 1. Stale-lead re-engagement (human-approved)
+- Trigger: a scheduled job hits `POST /jobs/sentry-sweep`, which finds lead tasks with `Seller Intent = open`, **`Contact Consent` checked**, no `DNC`, and `Last Called At` older than N days (start with 14).
+- **No call is placed without sign-off.** The sweep first creates a "📋 Sentry sweep approval" task in the leads list naming every lead it wants to call. Comment **"approve"** on that task to authorize (or **"skip"** to decline); the next sweep run executes the approved batch — re-checking consent/DNC at execution time — then marks the task ✅ so it can't run twice. Trigger the cron manually right after approving for immediate execution.
 - Sentry calls, references the earlier conversation ("we spoke a couple weeks ago…"), asks whether anything has changed, and offers to book time with Jake.
 - Outcome written back via the same post-call webhook → [[02 - Agent - Scribe (Post-Call Notes)]].
 
