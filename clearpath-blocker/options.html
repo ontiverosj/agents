@@ -13,7 +13,7 @@
         color: #e2e8f0;
       }
       h1 { font-size: 20px; }
-      h2 { font-size: 15px; margin-top: 28px; }
+      h2 { font-size: 15px; margin-top: 0; }
       p, li { font-size: 13px; color: #94a3b8; line-height: 1.6; }
       input {
         width: 100%;
@@ -35,6 +35,7 @@
         margin-top: 6px;
       }
       button.danger { background: #7f1d1d; }
+      button.green { background: #14532d; }
       .msg { font-size: 13px; margin-top: 8px; }
       .ok { color: #86efac; }
       .err { color: #fca5a5; }
@@ -45,31 +46,66 @@
         padding: 16px 20px;
         margin-top: 16px;
       }
+      .pill {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #1e293b;
+        color: #94a3b8;
+        margin-left: 6px;
+      }
     </style>
   </head>
   <body>
     <h1>ClearPath Blocker</h1>
     <p>
       Blocks adult sites and keywords, forces SafeSearch on Google, Bing and DuckDuckGo,
-      and puts YouTube in Restricted Mode. Pausing protection requires the lock password.
+      and puts YouTube in Restricted Mode.
+      <span id="modePill" class="pill">no lock set</span>
     </p>
 
     <div class="card">
-      <h2>Accountability lock</h2>
+      <h2>Option A — Nobody-knows-it lock (recommended)</h2>
       <p>
-        <strong>Hand the keyboard to someone you trust</strong> (spouse, friend) and have
-        them type a password you won't know. Pausing protection — even for 30 minutes —
-        requires this password.
+        Generates a random password, keeps only its fingerprint, and <strong>throws the
+        password away forever</strong>. Not you, not anyone. The only way to pause
+        protection is the 24-hour delayed unlock below — weak moments don't last 24 hours.
+      </p>
+      <input id="rlCurrent" type="password" placeholder="Current password (only if replacing an existing lock)" />
+      <button id="setRandomLock" class="green">Generate random lock — no one will know it</button>
+      <div id="rlMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Option B — Partner-held password</h2>
+      <p>
+        Hand the keyboard to someone you trust and have them type a password you won't
+        know. Pausing requires it.
       </p>
       <input id="current" type="password" placeholder="Current password (only if changing)" />
       <input id="password" type="password" placeholder="New lock password" />
-      <button id="setLock">Set lock password</button>
+      <button id="setLock">Set partner password</button>
       <div id="lockMsg" class="msg"></div>
     </div>
 
     <div class="card">
-      <h2>Pause protection (30 minutes)</h2>
-      <p>Requires the lock password. Protection resumes automatically.</p>
+      <h2>Delayed unlock</h2>
+      <p>
+        Need to pause protection legitimately? Request an unlock now and it becomes
+        usable in <strong>24 hours</strong>, for a 1-hour window, one time. You can
+        cancel a pending request anytime — future-you often will.
+      </p>
+      <div id="unlockStatus" class="msg"></div>
+      <button id="requestUnlock">Request delayed unlock (ready in 24 h)</button>
+      <button id="cancelUnlock" class="green" hidden>Cancel pending unlock</button>
+      <button id="usePause" class="danger" hidden>Pause protection for 30 minutes</button>
+      <div id="unlockMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Pause with partner password</h2>
       <input id="pausePw" type="password" placeholder="Lock password" />
       <button id="pause" class="danger">Pause for 30 minutes</button>
       <div id="pauseMsg" class="msg"></div>
@@ -79,7 +115,7 @@
       <h2>Make it tamper-resistant</h2>
       <ul>
         <li>This extension can be uninstalled from chrome://extensions — that's the weak point of any self-installed blocker.</li>
-        <li>Pair it with DNS filtering (NextDNS or CleanBrowsing) set at the router, with the account password held by your accountability partner.</li>
+        <li>Pair it with DNS filtering (NextDNS or CleanBrowsing) set at the router.</li>
         <li>On iPhone, use Screen Time → Limit Adult Websites with a passcode someone else sets.</li>
       </ul>
     </div>

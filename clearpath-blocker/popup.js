@@ -7,9 +7,16 @@ async function refresh() {
   if (s.active) {
     badge.textContent = 'Protection active';
     badge.className = 'badge on';
-    detail.textContent = s.hasLock
-      ? 'Adult content blocked. SafeSearch enforced. Pausing requires the lock password.'
-      : 'Blocking is on, but no lock password is set yet — open Settings and have your accountability partner set one.';
+    if (!s.hasLock) {
+      detail.textContent =
+        'Blocking is on, but no lock is set yet — open Settings and use the nobody-knows-it lock.';
+    } else if (s.lockMode === 'noknowledge') {
+      detail.textContent =
+        'Adult content blocked. Nobody knows the password — pausing requires the 24-hour delayed unlock in Settings.';
+    } else {
+      detail.textContent =
+        'Adult content blocked. SafeSearch enforced. Pausing requires the lock password.';
+    }
     resume.hidden = true;
   } else {
     badge.textContent = 'PAUSED';

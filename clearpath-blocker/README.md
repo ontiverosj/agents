@@ -10,9 +10,13 @@ password held by someone you trust.
   top-level domains, in tabs and embedded frames.
 - **Forces SafeSearch** on Google, Bing, and DuckDuckGo, and puts YouTube in
   Restricted Mode.
-- **Accountability lock:** pausing protection requires a password. Have someone you
-  trust set it so you can't turn it off in a weak moment. Pauses last 30 minutes and
-  auto-resume, even across browser restarts.
+- **Nobody-knows-it lock (recommended):** generates a random password, keeps only its
+  hash, and discards the plaintext forever. The only way to pause protection is the
+  **24-hour delayed unlock** — request it, wait a day, and it's usable once for one
+  hour. Weak moments don't survive a 24-hour delay; legitimate needs do.
+- **Partner-held password (alternative):** someone you trust sets a password you don't
+  know, and pausing requires it.
+- Pauses last 30 minutes and auto-resume, even across browser restarts.
 
 Blocking uses Chrome's declarativeNetRequest rules, so it works even in Incognito
 (if the extension is allowed there) and doesn't read or record your browsing.
