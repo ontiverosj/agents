@@ -8,8 +8,9 @@ const UNLOCK_DELAY_HOURS = 24; // wait after requesting an unlock
 const UNLOCK_WINDOW_HOURS = 1; // how long the unlock stays usable once ready
 
 chrome.runtime.onInstalled.addListener(async () => {
+  const { xBlocked = false } = await chrome.storage.local.get('xBlocked');
   await chrome.declarativeNetRequest.updateEnabledRulesets({
-    enableRulesetIds: RULESETS,
+    enableRulesetIds: xBlocked ? [...RULESETS, 'twitter_block'] : RULESETS,
   });
 });
 
@@ -51,12 +52,57 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       } = await chrome.storage.local.get(['pausedUntil', 'lockHash', 'lockMode', 'unlockAt']);
       sendResponse({
         active: enabled.length > 0,
+        xBlocked: enabled.includes('twitter_block'),
         pausedUntil,
         hasLock: !!lockHash,
         lockMode,
         unlockAt,
         unlockWindowMs: UNLOCK_WINDOW_HOURS * 3600 * 1000,
       });
+      return;
+    }
+
+    if (msg.type === 'blockX') {
+      // Turning the X/Twitter block ON is always free.
+      await chrome.declarativeNetRequest.updateEnabledRulesets({
+        enableRulesetIds: ['twitter_block'],
+      });
+      await chrome.storage.local.set({ xBlocked: true });
+      sendResponse({ ok: true });
+      return;
+    }
+
+    if (msg.type === 'unblockX') {
+      // Turning it OFF goes through the same gate as pausing: the lock
+      // password, or a delayed unlock that has become ready (consumed on use).
+      const { lockHash, unlockAt = 0 } = await chrome.storage.local.get([
+        'lockHash',
+        'unlockAt',
+      ]);
+      const now = Date.now();
+      const unlockReady =
+        unlockAt > 0 && now >= unlockAt && now <= unlockAt + UNLOCK_WINDOW_HOURS * 3600 * 1000;
+      const passwordOk =
+        lockHash && msg.password && (await sha256(msg.password)) === lockHash;
+
+      if (!lockHash || passwordOk || unlockReady) {
+        if (unlockReady && !passwordOk) {
+          await chrome.storage.local.set({ unlockAt: 0 }); // single use
+        }
+        await chrome.declarativeNetRequest.updateEnabledRulesets({
+          disableRulesetIds: ['twitter_block'],
+        });
+        await chrome.storage.local.set({ xBlocked: false });
+        sendResponse({ ok: true });
+      } else {
+        sendResponse({
+          ok: false,
+          error:
+            unlockAt > now
+              ? 'Unlock not ready yet — the 24-hour delay is still running.'
+              : 'Wrong password. Or use "Request delayed unlock" and come back in 24 hours.',
+        });
+      }
       return;
     }
 

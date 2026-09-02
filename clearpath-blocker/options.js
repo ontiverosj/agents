@@ -6,6 +6,10 @@ function show(id, text, ok) {
 
 async function refresh() {
   const s = await chrome.runtime.sendMessage({ type: 'status' });
+  const xPill = document.getElementById('xPill');
+  xPill.textContent = s.xBlocked ? 'blocked' : 'off';
+  document.getElementById('blockX').hidden = s.xBlocked;
+  document.getElementById('unblockRow').hidden = !s.xBlocked;
   const pill = document.getElementById('modePill');
   if (!s.hasLock) pill.textContent = 'no lock set';
   else if (s.lockMode === 'noknowledge') pill.textContent = 'nobody-knows-it lock active';
@@ -70,6 +74,21 @@ document.getElementById('setLock').addEventListener('click', async () => {
   } else {
     show('lockMsg', res.error, false);
   }
+  refresh();
+});
+
+document.getElementById('blockX').addEventListener('click', async () => {
+  await chrome.runtime.sendMessage({ type: 'blockX' });
+  show('xMsg', 'X / Twitter is now blocked.', true);
+  refresh();
+});
+
+document.getElementById('unblockX').addEventListener('click', async () => {
+  const password = document.getElementById('xPw').value;
+  const res = await chrome.runtime.sendMessage({ type: 'unblockX', password });
+  if (res.ok) show('xMsg', 'X / Twitter unblocked.', true);
+  else show('xMsg', res.error, false);
+  document.getElementById('xPw').value = '';
   refresh();
 });
 

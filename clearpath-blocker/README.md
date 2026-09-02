@@ -17,6 +17,10 @@ password held by someone you trust.
 - **Partner-held password (alternative):** someone you trust sets a password you don't
   know, and pausing requires it.
 - Pauses last 30 minutes and auto-resume, even across browser restarts.
+- **X / Twitter block (optional):** X hosts adult content natively and its media URLs
+  carry no NSFW markers, so filtering inside the site is impossible — the only block
+  that works is all-or-nothing. Turning it on is one click; turning it off requires
+  the lock password or a ready delayed unlock. The X block stays on during pauses.
 
 Blocking uses Chrome's declarativeNetRequest rules, so it works even in Incognito
 (if the extension is allowed there) and doesn't read or record your browsing.

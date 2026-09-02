@@ -105,6 +105,22 @@
     </div>
 
     <div class="card">
+      <h2>X / Twitter <span id="xPill" class="pill">off</span></h2>
+      <p>
+        X hosts adult content natively and no filter can separate it from the rest of
+        the feed, so the only block that works is blocking the whole site. Turning this
+        <strong>on</strong> is one click; turning it <strong>off</strong> requires the
+        lock password or a ready delayed unlock — same as pausing.
+      </p>
+      <button id="blockX" class="green">Block X / Twitter</button>
+      <div id="unblockRow" hidden>
+        <input id="xPw" type="password" placeholder="Lock password (leave empty to use a ready delayed unlock)" />
+        <button id="unblockX" class="danger">Unblock X / Twitter</button>
+      </div>
+      <div id="xMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
       <h2>Pause with partner password</h2>
       <input id="pausePw" type="password" placeholder="Lock password" />
       <button id="pause" class="danger">Pause for 30 minutes</button>

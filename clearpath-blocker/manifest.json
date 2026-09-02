@@ -9,7 +9,8 @@
   "declarative_net_request": {
     "rule_resources": [
       { "id": "adult_block", "enabled": true, "path": "rules/block.json" },
-      { "id": "safesearch", "enabled": true, "path": "rules/safesearch.json" }
+      { "id": "safesearch", "enabled": true, "path": "rules/safesearch.json" },
+      { "id": "twitter_block", "enabled": false, "path": "rules/twitter.json" }
     ]
   },
   "options_page": "options.html",
