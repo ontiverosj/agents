@@ -1,0 +1,134 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "resourceTypes": ["main_frame", "sub_frame"],
+      "requestDomains": [
+        "pornhub.com", "xvideos.com", "xnxx.com", "xhamster.com", "redtube.com",
+        "youporn.com", "tube8.com", "spankbang.com", "eporner.com", "hqporner.com",
+        "porntrex.com", "txxx.com", "upornia.com", "hclips.com", "tnaflix.com",
+        "drtuber.com", "nuvid.com", "4tube.com", "porn.com", "youjizz.com",
+        "beeg.com", "motherless.com", "thisvid.com", "erome.com", "fapello.com",
+        "chaturbate.com", "stripchat.com", "bongacams.com", "livejasmin.com",
+        "camsoda.com", "cam4.com", "myfreecams.com", "flirt4free.com",
+        "onlyfans.com", "fansly.com", "justfor.fans", "manyvids.com",
+        "brazzers.com", "bangbros.com", "realitykings.com", "naughtyamerica.com",
+        "mofos.com", "digitalplayground.com", "twistys.com", "babes.com",
+        "rule34.xxx", "e621.net", "nhentai.net", "hanime.tv", "hentaihaven.xxx",
+        "gelbooru.com", "danbooru.donmai.us", "fakku.net",
+        "literotica.com", "sexstories.com", "asstr.org",
+        "adultfriendfinder.com", "ashleymadison.com", "seeking.com",
+        "escortdirectory.com", "tryst.link", "eros.com",
+        "wetransfer.zone", "theporndude.com", "porngeek.com",
+        "ixxx.com", "sunporno.com", "vjav.com", "javhd.com", "javmost.com",
+        "spankwire.com", "keezmovies.com", "extremetube.com", "pornmd.com",
+        "sextb.net", "porndish.com", "fullporner.com", "pornone.com",
+        "ok.xxx", "goodporn.to", "whoreshub.com", "pornktube.tv",
+        "camwhores.tv", "recurbate.com", "hotscope.tv",
+        "scrolller.com", "redgifs.com", "gfycatporn.com",
+        "imagefap.com", "pichunter.com", "pornpics.com", "sex.com",
+        "xgroovy.com", "xfreehd.com", "pornhits.com", "anyporn.com",
+        "bigfuck.tv", "fuq.com", "tubegalore.com", "sextvx.com",
+        "daftsex.com", "noodlemagazine.com", "veporn.net", "pandamovies.org"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "resourceTypes": ["main_frame", "sub_frame"],
+      "regexFilter": "^https?://[^/]+\\.(xxx|porn|adult|sex|cam|tube)(:[0-9]+)?/"
+    }
+  },
+  {
+    "id": 10,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*porn*" }
+  },
+  {
+    "id": 11,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*xxx*" }
+  },
+  {
+    "id": 12,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*hentai*" }
+  },
+  {
+    "id": 13,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*xvideo*" }
+  },
+  {
+    "id": 14,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*xhamster*" }
+  },
+  {
+    "id": 15,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*chaturbate*" }
+  },
+  {
+    "id": 16,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*camgirl*" }
+  },
+  {
+    "id": 17,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*milf*" }
+  },
+  {
+    "id": 18,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*blowjob*" }
+  },
+  {
+    "id": 19,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*nsfw*" }
+  },
+  {
+    "id": 20,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*onlyfans*" }
+  },
+  {
+    "id": 21,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*escort*" }
+  },
+  {
+    "id": 22,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": { "resourceTypes": ["main_frame"], "urlFilter": "*erotic*" }
+  },
+  {
+    "id": 30,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "resourceTypes": ["main_frame", "sub_frame"],
+      "regexFilter": "^https?://(www\\.)?reddit\\.com/r/(gonewild|nsfw|porn|realgirls|rule34|hentai)"
+    }
+  }
+]

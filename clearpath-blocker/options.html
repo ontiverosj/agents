@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ClearPath Blocker — Settings</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 520px;
+        margin: 40px auto;
+        padding: 0 20px;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      h1 { font-size: 20px; }
+      h2 { font-size: 15px; margin-top: 28px; }
+      p, li { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        margin: 6px 0;
+        border-radius: 8px;
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #e2e8f0;
+      }
+      button {
+        padding: 8px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: white;
+        cursor: pointer;
+        margin-top: 6px;
+      }
+      button.danger { background: #7f1d1d; }
+      .msg { font-size: 13px; margin-top: 8px; }
+      .ok { color: #86efac; }
+      .err { color: #fca5a5; }
+      .card {
+        background: #1e293b40;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ClearPath Blocker</h1>
+    <p>
+      Blocks adult sites and keywords, forces SafeSearch on Google, Bing and DuckDuckGo,
+      and puts YouTube in Restricted Mode. Pausing protection requires the lock password.
+    </p>
+
+    <div class="card">
+      <h2>Accountability lock</h2>
+      <p>
+        <strong>Hand the keyboard to someone you trust</strong> (spouse, friend) and have
+        them type a password you won't know. Pausing protection — even for 30 minutes —
+        requires this password.
+      </p>
+      <input id="current" type="password" placeholder="Current password (only if changing)" />
+      <input id="password" type="password" placeholder="New lock password" />
+      <button id="setLock">Set lock password</button>
+      <div id="lockMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Pause protection (30 minutes)</h2>
+      <p>Requires the lock password. Protection resumes automatically.</p>
+      <input id="pausePw" type="password" placeholder="Lock password" />
+      <button id="pause" class="danger">Pause for 30 minutes</button>
+      <div id="pauseMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Make it tamper-resistant</h2>
+      <ul>
+        <li>This extension can be uninstalled from chrome://extensions — that's the weak point of any self-installed blocker.</li>
+        <li>Pair it with DNS filtering (NextDNS or CleanBrowsing) set at the router, with the account password held by your accountability partner.</li>
+        <li>On iPhone, use Screen Time → Limit Adult Websites with a passcode someone else sets.</li>
+      </ul>
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+</html>

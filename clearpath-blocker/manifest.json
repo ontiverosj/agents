@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "ClearPath Blocker",
+  "version": "1.0.0",
+  "description": "Blocks adult content, forces SafeSearch, and locks the settings behind an accountability password.",
+  "permissions": ["declarativeNetRequest", "storage", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "adult_block", "enabled": true, "path": "rules/block.json" },
+      { "id": "safesearch", "enabled": true, "path": "rules/safesearch.json" }
+    ]
+  },
+  "options_page": "options.html",
+  "action": { "default_popup": "popup.html" }
+}

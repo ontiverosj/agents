@@ -1,0 +1,70 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "transform": {
+          "queryTransform": {
+            "addOrReplaceParams": [{ "key": "safe", "value": "active" }]
+          }
+        }
+      }
+    },
+    "condition": {
+      "resourceTypes": ["main_frame"],
+      "regexFilter": "^https://www\\.google\\.[a-z.]{2,6}/search\\?"
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "transform": {
+          "queryTransform": {
+            "addOrReplaceParams": [{ "key": "adlt", "value": "strict" }]
+          }
+        }
+      }
+    },
+    "condition": {
+      "resourceTypes": ["main_frame"],
+      "regexFilter": "^https://www\\.bing\\.com/(search|images|videos)"
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "transform": {
+          "queryTransform": {
+            "addOrReplaceParams": [{ "key": "kp", "value": "1" }]
+          }
+        }
+      }
+    },
+    "condition": {
+      "resourceTypes": ["main_frame"],
+      "regexFilter": "^https://duckduckgo\\.com/\\?"
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "YouTube-Restrict", "operation": "set", "value": "Moderate" }
+      ]
+    },
+    "condition": {
+      "resourceTypes": ["main_frame", "sub_frame", "xmlhttprequest"],
+      "requestDomains": ["youtube.com", "youtubei.googleapis.com"]
+    }
+  }
+]
