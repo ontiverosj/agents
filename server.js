@@ -16,6 +16,7 @@ const {
 const { verifyWebhookSignature, startOutboundCall, submitBatchCall } = require('./src/elevenlabs');
 const { analyzeCallTranscript, askSage, generatePreCallBrief } = require('./src/claude');
 const leadsRouter = require('./src/index');
+const { createToolsTokenGuard } = require('./src/auth');
 
 const app = express();
 // Keep the raw body around — the ElevenLabs webhook signature is computed over it
@@ -27,20 +28,9 @@ app.use(express.json({
 
 const PORT = process.env.PORT || 3000;
 
-// Bearer-token guard for agent tools and job triggers (these are public once
-// deployed). Only enforced once AGENT_TOOLS_TOKEN is set.
-const requireToolsToken = (req, res, next) => {
-  const token = process.env.AGENT_TOOLS_TOKEN;
-  if (!token) {
-    console.warn('AGENT_TOOLS_TOKEN not set — tool endpoints are unauthenticated');
-    return next();
-  }
-  const header = req.headers.authorization || '';
-  if (header !== `Bearer ${token}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  return next();
-};
+// Bearer-token guard for public agent tools and job triggers. Missing
+// configuration fails closed so a deployment mistake cannot expose these routes.
+const requireToolsToken = createToolsTokenGuard();
 
 // lead_id is a ClickUp task ID (string)
 const validLeadId = (leadId) =>
@@ -69,7 +59,7 @@ app.post('/agent/scout', requireToolsToken, async (req, res) => {
     return res.status(200).json({ success: true, data: taskToLead(task) });
   } catch (error) {
     console.error('Error in /agent/scout:', error.message);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -108,7 +98,7 @@ app.patch('/agent/scout/lead', requireToolsToken, async (req, res) => {
     return res.status(200).json({ success: true, applied });
   } catch (error) {
     console.error('Error in PATCH /agent/scout/lead:', error.message);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -135,7 +125,7 @@ app.post('/agent/scout/followup', requireToolsToken, async (req, res) => {
     return res.status(200).json({ success: true, data: { lead_id, followup_at, next_step: nextStep } });
   } catch (error) {
     console.error('Error in /agent/scout/followup:', error.message);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -162,6 +152,10 @@ app.post('/webhooks/elevenlabs/post-call', async (req, res) => {
     if (!leadId) {
       console.warn(`Post-call webhook for ${conversationId} carried no lead_id — nothing to log`);
       return res.status(200).json({ success: true, unmatched: true });
+    }
+
+    if (!validLeadId(leadId)) {
+      return res.status(400).json({ error: 'Invalid lead_id' });
     }
 
     // Idempotency: webhook retries must not duplicate call-log comments
@@ -224,7 +218,7 @@ app.post('/webhooks/elevenlabs/post-call', async (req, res) => {
   } catch (error) {
     console.error('Error in /webhooks/elevenlabs/post-call:', error.message);
     // 500 → ElevenLabs retries; payload is logged for manual replay
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -271,7 +265,7 @@ app.post('/jobs/outbound-call', requireToolsToken, async (req, res) => {
     return res.status(200).json({ success: true, data: result });
   } catch (error) {
     console.error('Error in /jobs/outbound-call:', error.message);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -361,7 +355,7 @@ app.post('/jobs/sentry-sweep', requireToolsToken, async (req, res) => {
     return res.status(200).json({ success: true, status: 'approval_requested', task_id: task.id, proposed: leads.length });
   } catch (error) {
     console.error('Error in /jobs/sentry-sweep:', error.message);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -398,7 +392,7 @@ app.post('/agent/sage', requireToolsToken, async (req, res) => {
     return res.status(200).json({ success: true, answer });
   } catch (error) {
     console.error('Error in /agent/sage:', error.message);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -427,7 +421,7 @@ app.post('/jobs/enrich-lead', requireToolsToken, async (req, res) => {
     return res.status(200).json({ success: true, brief });
   } catch (error) {
     console.error('Error in /jobs/enrich-lead:', error.message);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
