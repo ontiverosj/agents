@@ -42,7 +42,8 @@ notes.
 | `POST /jobs/enrich-lead` | Scholar: web-research the lead and write a Pre-Call Brief (`{ lead_id }`) |
 
 All endpoints except `GET /` and the webhook require `Authorization: Bearer
-$AGENT_TOOLS_TOKEN` once that env var is set. The webhook is authenticated by
+$AGENT_TOOLS_TOKEN`. Protected routes fail closed with `503` when the server token
+is not configured. The webhook is authenticated by
 ElevenLabs HMAC signature (`ELEVENLABS_WEBHOOK_SECRET`). Copy `.env.example`
 to `.env` (or set the vars on your host) to configure.
 
@@ -54,3 +55,10 @@ Start at `00 - ElevenLabs Agents Overview.md`.
 
 To use in Obsidian: copy the `ElevenLabs Agents` folder into your vault, or
 sync this repo into the vault with the obsidian-git plugin.
+
+## Authentication safety
+
+- Set `AGENT_TOOLS_TOKEN` before exposing the service. Protected routes reject requests when it is missing.
+- Store secrets only in the host environment or a password manager; never commit `.env`.
+- Rotate the shared token by updating the server, ElevenLabs tools, ClickUp automation, and cron together.
+- Run `npm test` to verify bearer-token comparison and fail-closed behavior.

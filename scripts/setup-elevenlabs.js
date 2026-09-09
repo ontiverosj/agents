@@ -24,11 +24,12 @@ const API_KEY = process.env.ELEVENLABS_API_KEY;
 const SERVER_URL = (process.env.SERVER_URL || '').replace(/\/$/, '');
 const TOOLS_TOKEN = process.env.AGENT_TOOLS_TOKEN;
 
-if (!API_KEY || !SERVER_URL) {
+if (!API_KEY || !SERVER_URL || !TOOLS_TOKEN) {
   console.error(
     'Required env vars:\n' +
     '  ELEVENLABS_API_KEY  (elevenlabs.io → Profile → API keys)\n' +
-    '  SERVER_URL          (public HTTPS base URL of the deployed agents API; ngrok works for testing)'
+    '  SERVER_URL          (public HTTPS base URL of the deployed agents API; ngrok works for testing)\n' +
+    '  AGENT_TOOLS_TOKEN   (shared bearer token for protected tool endpoints)'
   );
   process.exit(1);
 }
@@ -39,7 +40,7 @@ const api = axios.create({
   timeout: 30000,
 });
 
-const authHeaders = TOOLS_TOKEN ? { Authorization: `Bearer ${TOOLS_TOKEN}` } : {};
+const authHeaders = { Authorization: `Bearer ${TOOLS_TOKEN}` };
 
 const leadIdProp = {
   type: 'string',
