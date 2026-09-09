@@ -90,8 +90,11 @@ app.post('/api/video-edits/combine', requireToolsToken, upload.fields([
   const clean = () => [...inputs, output].forEach((file) => fs.rm(file, { force: true }, () => {}));
   try {
     await new Promise((resolve, reject) => {
-      const filter = '[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1[v0];[1:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[v][a]';
-      const child = spawn(ffmpegPath, ['-y', '-i', first.path, '-i', second.path, '-filter_complex', filter, '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-movflags', '+faststart', output]);
+      // Keep peak memory below Render starter-instance limits. Processing two
+      // 1080x1920 frame pipelines in parallel can cause the service to be
+      // terminated before FFmpeg has a chance to report an error.
+      const filter = '[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[v0];[1:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[v][a]';
+      const child = spawn(ffmpegPath, ['-y', '-filter_threads', '1', '-filter_complex_threads', '1', '-i', first.path, '-i', second.path, '-filter_complex', filter, '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-threads', '1', '-preset', 'ultrafast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', output]);
       let stderr = '';
       child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000); });
       child.on('error', reject);
