@@ -89,11 +89,30 @@ app.post('/api/video-edits/combine', requireToolsToken, upload.fields([
   const output = path.join(os.tmpdir(), `everflow-edit-${Date.now()}.mp4`);
   const clean = () => [...inputs, output].forEach((file) => fs.rm(file, { force: true }, () => {}));
   try {
+    const seconds = (value, fallback) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+    };
+    const clips = [
+      { file: first.path, start: seconds(req.body.video_one_start, 0), end: seconds(req.body.video_one_end, null) },
+      { file: second.path, start: seconds(req.body.video_two_start, 0), end: seconds(req.body.video_two_end, null) },
+    ];
+    const order = req.body.order === '2-1' ? [clips[1], clips[0]] : clips;
+    const transition = Math.min(seconds(req.body.transition_duration, 0.25), 1);
+    if (order.some((clip) => clip.end === null || clip.end <= clip.start)) {
+      clean();
+      return res.status(400).json({ error: 'Each clip needs a valid start and end time' });
+    }
     await new Promise((resolve, reject) => {
       // Keep peak memory below Render starter-instance limits. Processing two
       // 1080x1920 frame pipelines in parallel can cause the service to be
       // terminated before FFmpeg has a chance to report an error.
-      const filter = '[0:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[v0];[1:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[v][a]';
+      const duration0 = order[0].end - order[0].start;
+      const duration1 = order[1].end - order[1].start;
+      const fade0 = Math.min(transition, duration0 / 3);
+      const fade1 = Math.min(transition, duration1 / 3);
+      const inputIndex = order[0] === clips[0] ? [0, 1] : [1, 0];
+      const filter = `[${inputIndex[0]}:v]trim=start=${order[0].start}:end=${order[0].end},setpts=PTS-STARTPTS,scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fade=t=out:st=${Math.max(0, duration0 - fade0)}:d=${fade0}[v0];[${inputIndex[0]}:a]atrim=start=${order[0].start}:end=${order[0].end},asetpts=PTS-STARTPTS,afade=t=out:st=${Math.max(0, duration0 - fade0)}:d=${fade0}[a0];[${inputIndex[1]}:v]trim=start=${order[1].start}:end=${order[1].end},setpts=PTS-STARTPTS,scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fade=t=in:st=0:d=${fade1}[v1];[${inputIndex[1]}:a]atrim=start=${order[1].start}:end=${order[1].end},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${fade1}[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]`;
       const child = spawn(ffmpegPath, ['-y', '-filter_threads', '1', '-filter_complex_threads', '1', '-i', first.path, '-i', second.path, '-filter_complex', filter, '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-threads', '1', '-preset', 'ultrafast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', output]);
       let stderr = '';
       child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000); });
