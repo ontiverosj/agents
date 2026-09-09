@@ -28,7 +28,7 @@ if (!API_KEY || !SERVER_URL || !TOOLS_TOKEN) {
   console.error(
     'Required env vars:\n' +
     '  ELEVENLABS_API_KEY  (elevenlabs.io → Profile → API keys)\n' +
-    '  SERVER_URL          (public HTTPS base URL of the deployed agents API; ngrok works for testing)\\n' +
+    '  SERVER_URL          (public HTTPS base URL of the deployed agents API; ngrok works for testing)\n' +
     '  AGENT_TOOLS_TOKEN   (shared bearer token for protected tool endpoints)'
   );
   process.exit(1);
