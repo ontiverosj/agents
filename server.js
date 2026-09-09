@@ -26,6 +26,21 @@ app.use(express.json({
   },
 }));
 
+// Allow the private Sites dashboard to read API status responses. Keep this
+// list explicit so arbitrary websites cannot make authenticated browser calls.
+const DASHBOARD_ORIGIN = 'https://everflow-agents-dashboard.ontiverosj.chatgpt.site';
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin === DASHBOARD_ORIGIN) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  return next();
+});
+
 const PORT = process.env.PORT || 3000;
 
 // Bearer-token guard for public agent tools and job triggers. Missing
@@ -39,6 +54,16 @@ const validLeadId = (leadId) =>
 // Health check
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Agent API is running' });
+});
+
+// Read-only integration status. Never return any portion of the API key.
+app.get('/api/integrations/format-finder/status', requireToolsToken, (req, res) => {
+  const configured = Boolean(process.env.FORMAT_FINDER_API_KEY?.trim());
+  return res.status(configured ? 200 : 503).json({
+    integration: 'format-finder',
+    configured,
+    status: configured ? 'configured' : 'not_configured',
+  });
 });
 
 // Lead listing from the ClickUp leads list
