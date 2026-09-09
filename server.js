@@ -1,5 +1,11 @@
 require('dotenv').config();
 const express = require('express');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawn } = require('child_process');
+const multer = require('multer');
+const ffmpegPath = require('ffmpeg-static');
 const {
   FIELDS,
   getLeadTask,
@@ -46,6 +52,7 @@ const PORT = process.env.PORT || 3000;
 // Bearer-token guard for public agent tools and job triggers. Missing
 // configuration fails closed so a deployment mistake cannot expose these routes.
 const requireToolsToken = createToolsTokenGuard();
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 500 * 1024 * 1024, files: 2 } });
 
 // lead_id is a ClickUp task ID (string)
 const validLeadId = (leadId) =>
@@ -64,6 +71,42 @@ app.get('/api/integrations/format-finder/status', requireToolsToken, (req, res) 
     configured,
     status: configured ? 'configured' : 'not_configured',
   });
+});
+
+// Combine two uploaded videos into one vertical MP4 while preserving their
+// original audio. Temporary files are removed after the response completes.
+app.post('/api/video-edits/combine', requireToolsToken, upload.fields([
+  { name: 'video_one', maxCount: 1 },
+  { name: 'video_two', maxCount: 1 },
+]), async (req, res) => {
+  const first = req.files?.video_one?.[0];
+  const second = req.files?.video_two?.[0];
+  const inputs = [first?.path, second?.path].filter(Boolean);
+  if (!first || !second) {
+    inputs.forEach((file) => fs.rm(file, { force: true }, () => {}));
+    return res.status(400).json({ error: 'Both video_one and video_two are required' });
+  }
+  const output = path.join(os.tmpdir(), `everflow-edit-${Date.now()}.mp4`);
+  const clean = () => [...inputs, output].forEach((file) => fs.rm(file, { force: true }, () => {}));
+  try {
+    await new Promise((resolve, reject) => {
+      const filter = '[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1[v0];[1:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[v][a]';
+      const child = spawn(ffmpegPath, ['-y', '-i', first.path, '-i', second.path, '-filter_complex', filter, '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-movflags', '+faststart', output]);
+      let stderr = '';
+      child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000); });
+      child.on('error', reject);
+      child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${stderr}`)));
+    });
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', 'attachment; filename="everflow-edited-video.mp4"');
+    res.on('finish', clean);
+    res.on('close', clean);
+    return fs.createReadStream(output).pipe(res);
+  } catch (error) {
+    console.error('Video combine failed:', error.message);
+    clean();
+    return res.status(500).json({ error: 'Video editing failed' });
+  }
 });
 
 // Lead listing from the ClickUp leads list
