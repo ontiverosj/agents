@@ -44,6 +44,7 @@ notes.
 | `POST /jobs/sentry-sweep` | Human-approved batch re-engagement: proposes a ClickUp approval task, dials only after an "approve" comment |
 | `POST /agent/sage` | Sage: answer a question about the pipeline (`{ question }`) |
 | `POST /jobs/enrich-lead` | Scholar: web-research the lead and write a Pre-Call Brief (`{ lead_id }`) |
+| `POST /api/video-edits/combine` | Render two trimmed clips with crop, reverse, filters, optional SRT captions, and 720p–4K presets |
 
 All endpoints except `GET /` and the webhook require `Authorization: Bearer
 $AGENT_TOOLS_TOKEN`. Protected routes fail closed with `503` when the server token
