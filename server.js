@@ -26,6 +26,7 @@ const { createToolsTokenGuard } = require('./src/auth');
 const { createAdobeClient, verifyWebhookSignature: verifyAdobeWebhook } = require('./src/adobe');
 const { parseExportOptions, videoChain, escapeSubtitlePath } = require('./src/video');
 const { generateOrEditImage, createSquareVariation } = require('./src/openai-images');
+const { publicStatus: heygenStatus, createCloneVideo, getCloneVideo } = require('./src/heygen');
 
 const app = express();
 // Keep the raw body around — the ElevenLabs webhook signature is computed over it
@@ -117,6 +118,28 @@ app.post('/api/integrations/adobe/webhook', (req, res) => {
   console.info('Adobe asset event received', { eventId: req.headers['x-adobe-event-id'] || null,
     type: req.body?.event || req.body?.type || 'unknown' });
   return res.status(202).json({ accepted: true });
+});
+
+// Create presenter videos with the existing HeyGen avatar and cloned voice.
+app.get('/api/integrations/heygen/status', requireToolsToken, (req, res) =>
+  res.json(heygenStatus()));
+
+app.post('/api/heygen/videos', requireToolsToken, async (req, res) => {
+  try {
+    return res.status(202).json(await createCloneVideo(req.body));
+  } catch (error) {
+    console.error('HeyGen video request failed:', error.message);
+    return res.status(error.statusCode || 500).json({ error: error.message || 'HeyGen video generation failed' });
+  }
+});
+
+app.get('/api/heygen/videos/:videoId', requireToolsToken, async (req, res) => {
+  try {
+    return res.json(await getCloneVideo(req.params.videoId));
+  } catch (error) {
+    console.error('HeyGen video status failed:', error.message);
+    return res.status(error.statusCode || 500).json({ error: error.message || 'HeyGen video status failed' });
+  }
 });
 
 // Generate and edit storyboard images using the OpenAI key stored only on Render.
