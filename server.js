@@ -24,6 +24,7 @@ const { analyzeCallTranscript, askSage, generatePreCallBrief } = require('./src/
 const leadsRouter = require('./src/index');
 const { createToolsTokenGuard } = require('./src/auth');
 const { createAdobeClient, verifyWebhookSignature: verifyAdobeWebhook } = require('./src/adobe');
+const { createFireflyClient } = require('./src/firefly');
 const { parseExportOptions, videoChain, escapeSubtitlePath } = require('./src/video');
 
 const app = express();
@@ -55,6 +56,7 @@ const PORT = process.env.PORT || 3000;
 // configuration fails closed so a deployment mistake cannot expose these routes.
 const requireToolsToken = createToolsTokenGuard();
 const adobe = createAdobeClient();
+const firefly = createFireflyClient();
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 500 * 1024 * 1024, files: 3 } });
 
 // lead_id is a ClickUp task ID (string)
@@ -86,6 +88,37 @@ app.get('/api/integrations/adobe/connect', requireToolsToken, (req, res) => {
 
 app.get('/api/integrations/adobe/status', requireToolsToken, (req, res) =>
   res.json({ integration: 'adobe', ...adobe.status() }));
+
+app.get('/api/integrations/firefly/status', requireToolsToken, (req, res) =>
+  res.json({ integration: 'adobe-firefly', ...firefly.status() }));
+
+app.post('/api/integrations/firefly/verify', requireToolsToken, async (req, res) => {
+  try {
+    await firefly.getAccessToken();
+    return res.json({ integration: 'adobe-firefly', verified: true, ...firefly.status() });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
+
+app.post('/api/video-edits/firefly/reframe', requireToolsToken, async (req, res) => {
+  try {
+    const result = await firefly.submitReframe({ sourceUrl: req.body?.source_url,
+      destinationUrl: req.body?.destination_url, width: req.body?.width, height: req.body?.height,
+      focalPoints: req.body?.focal_points, sceneEditDetection: req.body?.scene_edit_detection });
+    return res.status(202).json(result);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
+
+app.get('/api/video-edits/firefly/jobs/:jobId', requireToolsToken, async (req, res) => {
+  try {
+    return res.json(await firefly.getJob(req.params.jobId));
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
 
 app.get('/api/integrations/adobe/callback', async (req, res) => {
   const dashboardUrl = `${DASHBOARD_ORIGIN}/?integration=adobe`;
