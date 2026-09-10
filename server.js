@@ -25,10 +25,12 @@ const leadsRouter = require('./src/index');
 const { createToolsTokenGuard } = require('./src/auth');
 const { createAdobeClient, verifyWebhookSignature: verifyAdobeWebhook } = require('./src/adobe');
 const { parseExportOptions, videoChain, escapeSubtitlePath } = require('./src/video');
+const { generateOrEditImage, createSquareVariation } = require('./src/openai-images');
 
 const app = express();
 // Keep the raw body around — the ElevenLabs webhook signature is computed over it
 app.use(express.json({
+  limit: '25mb',
   verify: (req, res, buf) => {
     req.rawBody = buf.toString('utf8');
   },
@@ -115,6 +117,25 @@ app.post('/api/integrations/adobe/webhook', (req, res) => {
   console.info('Adobe asset event received', { eventId: req.headers['x-adobe-event-id'] || null,
     type: req.body?.event || req.body?.type || 'unknown' });
   return res.status(202).json({ accepted: true });
+});
+
+// Generate and edit storyboard images using the OpenAI key stored only on Render.
+app.post('/api/images/generate', requireToolsToken, async (req, res) => {
+  try {
+    return res.json(await generateOrEditImage(req.body));
+  } catch (error) {
+    console.error('OpenAI image request failed:', error.message);
+    return res.status(error.statusCode || 500).json({ error: error.message || 'Image generation failed' });
+  }
+});
+
+app.post('/api/images/variation', requireToolsToken, async (req, res) => {
+  try {
+    return res.json(await createSquareVariation(req.body));
+  } catch (error) {
+    console.error('OpenAI image variation failed:', error.message);
+    return res.status(error.statusCode || 500).json({ error: error.message || 'Image variation failed' });
+  }
 });
 
 // Combine two uploaded videos into one vertical MP4 while preserving their
