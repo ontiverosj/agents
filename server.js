@@ -24,6 +24,7 @@ const { analyzeCallTranscript, askSage, generatePreCallBrief } = require('./src/
 const leadsRouter = require('./src/index');
 const { createToolsTokenGuard } = require('./src/auth');
 const { createAdobeClient, verifyWebhookSignature: verifyAdobeWebhook } = require('./src/adobe');
+const { parseExportOptions, videoChain, escapeSubtitlePath } = require('./src/video');
 
 const app = express();
 // Keep the raw body around — the ElevenLabs webhook signature is computed over it
@@ -54,7 +55,7 @@ const PORT = process.env.PORT || 3000;
 // configuration fails closed so a deployment mistake cannot expose these routes.
 const requireToolsToken = createToolsTokenGuard();
 const adobe = createAdobeClient();
-const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 500 * 1024 * 1024, files: 2 } });
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 500 * 1024 * 1024, files: 3 } });
 
 // lead_id is a ClickUp task ID (string)
 const validLeadId = (leadId) =>
@@ -121,10 +122,12 @@ app.post('/api/integrations/adobe/webhook', (req, res) => {
 app.post('/api/video-edits/combine', requireToolsToken, upload.fields([
   { name: 'video_one', maxCount: 1 },
   { name: 'video_two', maxCount: 1 },
+  { name: 'captions', maxCount: 1 },
 ]), async (req, res) => {
   const first = req.files?.video_one?.[0];
   const second = req.files?.video_two?.[0];
-  const inputs = [first?.path, second?.path].filter(Boolean);
+  const captions = req.files?.captions?.[0];
+  const inputs = [first?.path, second?.path, captions?.path].filter(Boolean);
   if (!first || !second) {
     inputs.forEach((file) => fs.rm(file, { force: true }, () => {}));
     return res.status(400).json({ error: 'Both video_one and video_two are required' });
@@ -140,6 +143,9 @@ app.post('/api/video-edits/combine', requireToolsToken, upload.fields([
       { file: first.path, start: seconds(req.body.video_one_start, 0), end: seconds(req.body.video_one_end, null) },
       { file: second.path, start: seconds(req.body.video_two_start, 0), end: seconds(req.body.video_two_end, null) },
     ];
+    const options = parseExportOptions(req.body);
+    clips[0].effects = options.videoOne;
+    clips[1].effects = options.videoTwo;
     const order = req.body.order === '2-1' ? [clips[1], clips[0]] : clips;
     const transition = Math.min(seconds(req.body.transition_duration, 0.25), 1);
     if (order.some((clip) => clip.end === null || clip.end <= clip.start)) {
@@ -155,7 +161,13 @@ app.post('/api/video-edits/combine', requireToolsToken, upload.fields([
       const fade0 = Math.min(transition, duration0 / 3);
       const fade1 = Math.min(transition, duration1 / 3);
       const inputIndex = order[0] === clips[0] ? [0, 1] : [1, 0];
-      const filter = `[${inputIndex[0]}:v]trim=start=${order[0].start}:end=${order[0].end},setpts=PTS-STARTPTS,scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fade=t=out:st=${Math.max(0, duration0 - fade0)}:d=${fade0}[v0];[${inputIndex[0]}:a]atrim=start=${order[0].start}:end=${order[0].end},asetpts=PTS-STARTPTS,afade=t=out:st=${Math.max(0, duration0 - fade0)}:d=${fade0}[a0];[${inputIndex[1]}:v]trim=start=${order[1].start}:end=${order[1].end},setpts=PTS-STARTPTS,scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fade=t=in:st=0:d=${fade1}[v1];[${inputIndex[1]}:a]atrim=start=${order[1].start}:end=${order[1].end},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${fade1}[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]`;
+      const video0 = videoChain(order[0].effects, options, options.width, options.height);
+      const video1 = videoChain(order[1].effects, options, options.width, options.height);
+      const reverseAudio0 = order[0].effects.reverse ? ',areverse' : '';
+      const reverseAudio1 = order[1].effects.reverse ? ',areverse' : '';
+      const captionFilter = captions ? `;[joined]subtitles='${escapeSubtitlePath(captions.path)}'[v]` : '';
+      const joinedLabel = captions ? 'joined' : 'v';
+      const filter = `[${inputIndex[0]}:v]trim=start=${order[0].start}:end=${order[0].end},setpts=PTS-STARTPTS,${video0},fade=t=out:st=${Math.max(0, duration0 - fade0)}:d=${fade0}[v0];[${inputIndex[0]}:a]atrim=start=${order[0].start}:end=${order[0].end},asetpts=PTS-STARTPTS${reverseAudio0},afade=t=out:st=${Math.max(0, duration0 - fade0)}:d=${fade0}[a0];[${inputIndex[1]}:v]trim=start=${order[1].start}:end=${order[1].end},setpts=PTS-STARTPTS,${video1},fade=t=in:st=0:d=${fade1}[v1];[${inputIndex[1]}:a]atrim=start=${order[1].start}:end=${order[1].end},asetpts=PTS-STARTPTS${reverseAudio1},afade=t=in:st=0:d=${fade1}[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[${joinedLabel}][a]${captionFilter}`;
       const child = spawn(ffmpegPath, ['-y', '-filter_threads', '1', '-filter_complex_threads', '1', '-i', first.path, '-i', second.path, '-filter_complex', filter, '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-threads', '1', '-preset', 'ultrafast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', output]);
       let stderr = '';
       child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000); });
