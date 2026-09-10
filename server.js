@@ -23,6 +23,7 @@ const { verifyWebhookSignature, startOutboundCall, submitBatchCall } = require('
 const { analyzeCallTranscript, askSage, generatePreCallBrief } = require('./src/claude');
 const leadsRouter = require('./src/index');
 const { createToolsTokenGuard } = require('./src/auth');
+const { createAdobeClient, verifyWebhookSignature: verifyAdobeWebhook } = require('./src/adobe');
 
 const app = express();
 // Keep the raw body around — the ElevenLabs webhook signature is computed over it
@@ -52,6 +53,7 @@ const PORT = process.env.PORT || 3000;
 // Bearer-token guard for public agent tools and job triggers. Missing
 // configuration fails closed so a deployment mistake cannot expose these routes.
 const requireToolsToken = createToolsTokenGuard();
+const adobe = createAdobeClient();
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 500 * 1024 * 1024, files: 2 } });
 
 // lead_id is a ClickUp task ID (string)
@@ -71,6 +73,47 @@ app.get('/api/integrations/format-finder/status', requireToolsToken, (req, res) 
     configured,
     status: configured ? 'configured' : 'not_configured',
   });
+});
+
+app.get('/api/integrations/adobe/connect', requireToolsToken, (req, res) => {
+  try {
+    return res.json({ authorization_url: adobe.getAuthorizationUrl() });
+  } catch (error) {
+    return res.status(503).json({ error: error.message });
+  }
+});
+
+app.get('/api/integrations/adobe/status', requireToolsToken, (req, res) =>
+  res.json({ integration: 'adobe', ...adobe.status() }));
+
+app.get('/api/integrations/adobe/callback', async (req, res) => {
+  const dashboardUrl = `${DASHBOARD_ORIGIN}/?integration=adobe`;
+  if (req.query.error) return res.redirect(`${dashboardUrl}&status=denied`);
+  try {
+    await adobe.exchangeCode({ code: req.query.code, state: req.query.state });
+    return res.redirect(`${dashboardUrl}&status=connected`);
+  } catch (error) {
+    console.error('Adobe OAuth callback failed:', error.message);
+    return res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
+
+app.get('/api/integrations/adobe/webhook', (req, res) => {
+  if (typeof req.query.challenge !== 'string' || !req.query.challenge) {
+    return res.status(400).json({ error: 'Missing challenge' });
+  }
+  return res.json({ challenge: req.query.challenge });
+});
+
+app.post('/api/integrations/adobe/webhook', (req, res) => {
+  const secret = process.env.ADOBE_WEBHOOK_SECRET;
+  if (!secret) return res.status(503).json({ error: 'Adobe webhook verification unavailable' });
+  if (!verifyAdobeWebhook({ rawBody: req.rawBody, signature: req.headers['x-adobe-signature'], secret })) {
+    return res.status(401).json({ error: 'Invalid Adobe webhook signature' });
+  }
+  console.info('Adobe asset event received', { eventId: req.headers['x-adobe-event-id'] || null,
+    type: req.body?.event || req.body?.type || 'unknown' });
+  return res.status(202).json({ accepted: true });
 });
 
 // Combine two uploaded videos into one vertical MP4 while preserving their
