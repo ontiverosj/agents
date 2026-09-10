@@ -31,6 +31,10 @@ notes.
 | Endpoint | Purpose |
 |---|---|
 | `GET /` | Health check |
+| `GET /api/integrations/adobe/connect` | Create a short-lived Adobe OAuth authorization URL |
+| `GET /api/integrations/adobe/status` | Report configured/connected state without exposing credentials |
+| `GET /api/integrations/adobe/callback` | Adobe OAuth callback |
+| `GET/POST /api/integrations/adobe/webhook` | Adobe event challenge and signed event receiver |
 | `GET /leads` | List all leads from the ClickUp leads list |
 | `POST /agent/scout` | Scout tool: fetch lead by `lead_id` (ClickUp task ID) |
 | `PATCH /agent/scout/lead` | Scout tool: update qualification custom fields |
@@ -62,3 +66,18 @@ sync this repo into the vault with the obsidian-git plugin.
 - Store secrets only in the host environment or a password manager; never commit `.env`.
 - Rotate the shared token by updating the server, ElevenLabs tools, ClickUp automation, and cron together.
 - Run `npm test` to verify bearer-token comparison and fail-closed behavior.
+
+## Adobe integration
+
+Configure these values on the Render service and never commit their values:
+
+- `ADOBE_CLIENT_ID`
+- `ADOBE_CLIENT_SECRET`
+- `ADOBE_REDIRECT_URI` — `https://everflow-agents-api.onrender.com/api/integrations/adobe/callback`
+- `ADOBE_OAUTH_STATE_SECRET` — optional dedicated signing secret; defaults to the client secret
+- `ADOBE_SCOPES` — optional; defaults to `openid,AdobeID,creative_cloud`
+- `ADOBE_WEBHOOK_SECRET` — required before accepting Adobe asset events
+
+OAuth access and refresh tokens stay server-side and are never returned by status routes.
+The initial token cache is in memory and clears on a service restart, so reconnect Adobe after
+a deploy. Add an encrypted persistent token store before enabling multi-user accounts.
