@@ -31,7 +31,7 @@ async function heygenRequest(path, options = {}, fetchImpl = fetch) {
     ...options,
     headers: {
       'X-Api-Key': config.apiKey,
-      'Content-Type': 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...(options.headers || {}),
     },
   });
@@ -99,7 +99,7 @@ async function getCloneVideo(videoId, fetchImpl = fetch) {
   }
   const data = await heygenRequest(
     `/v1/video_status.get?video_id=${encodeURIComponent(videoId)}`,
-    { method: 'GET', headers: { 'Content-Type': undefined } },
+    { method: 'GET' },
     fetchImpl
   );
   return {
