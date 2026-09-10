@@ -33,6 +33,10 @@ notes.
 | `GET /` | Health check |
 | `GET /api/integrations/adobe/connect` | Create a short-lived Adobe OAuth authorization URL |
 | `GET /api/integrations/adobe/status` | Report configured/connected state without exposing credentials |
+| `GET /api/integrations/firefly/status` | Report Firefly server configuration/token state without exposing credentials |
+| `POST /api/integrations/firefly/verify` | Verify Firefly OAuth Server-to-Server credentials and cache a short-lived token |
+| `POST /api/video-edits/firefly/reframe` | Submit an Adobe Firefly Reframe v2 job using signed source/destination URLs |
+| `GET /api/video-edits/firefly/jobs/:jobId` | Read Firefly render progress and output status |
 | `GET /api/integrations/adobe/callback` | Adobe OAuth callback |
 | `GET/POST /api/integrations/adobe/webhook` | Adobe event challenge and signed event receiver |
 | `GET /leads` | List all leads from the ClickUp leads list |
@@ -82,3 +86,12 @@ Configure these values on the Render service and never commit their values:
 OAuth access and refresh tokens stay server-side and are never returned by status routes.
 The initial token cache is in memory and clears on a service restart, so reconnect Adobe after
 a deploy. Add an encrypted persistent token store before enabling multi-user accounts.
+
+## Adobe Firefly Audio/Video APIs
+
+Add the Audio/Video API to an Adobe Developer Console project using OAuth Server-to-Server,
+then configure `ADOBE_FIREFLY_CLIENT_ID` and `ADOBE_FIREFLY_CLIENT_SECRET` on Render. The
+server obtains and caches 24-hour tokens with `openid,AdobeID,firefly_api,ff_apis`; tokens and
+client secrets are never returned to the browser. Reframe v2 requires HTTPS pre-signed source
+and destination URLs. Submit those URLs with output dimensions and optional `focal_points`,
+then poll the returned job ID through the protected status endpoint.
