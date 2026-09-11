@@ -27,6 +27,7 @@ test('setup gate, OAuth PKCE, replay protection, protected MCP and restart persi
   assert.equal(consent.status,200);
   // Browser form POSTs under no-referrer use Origin: null and fail CSRF validation.
   assert.equal(consent.headers.get('referrer-policy'),'same-origin');
+  assert.match(consent.headers.get('content-security-policy'), /form-action 'self' https:\/\/chatgpt\.com;/);
   const cookie=consent.headers.get('set-cookie').split(';')[0];
   const html=await consent.text();
   const request=/name="request" value="([^"]+)"/.exec(html)[1];
@@ -35,8 +36,9 @@ test('setup gate, OAuth PKCE, replay protection, protected MCP and restart persi
   assert.equal((await post('/authorize',{request,password:cfg.password},{cookie,origin:'https://evil.example'})).status,400);
   assert.equal((await post('/authorize',{request,password:cfg.password},{origin:cfg.origin})).status,400);
   assert.equal((await post('/authorize',{request,password:'wrong'},{cookie,origin:cfg.origin})).status,403);
-  const login=await post('/authorize',{request,password:cfg.password},{cookie,origin:cfg.origin});
-  assert.equal(login.status,302);
+  const login=await get('/authorize',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',cookie,origin:cfg.origin},body:new URLSearchParams({request,password:cfg.password})});
+  assert.equal(login.status,303);
+  assert.equal((await post('/authorize',{request,password:cfg.password},{cookie,origin:cfg.origin})).status,400);
   const callback=new URL(login.headers.get('location'));
   assert.equal(callback.searchParams.get('iss'),cfg.origin);
   assert.equal(callback.searchParams.get('state'),'test-state');
