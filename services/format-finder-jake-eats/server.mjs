@@ -60,7 +60,13 @@ export function createApp(config, makeUpstream) {
   app.get('/', (req, res) => res.type('html').send(page(ready()
     ? '<p>Your service is ready to connect. In ChatGPT, add this server using OAuth authentication.</p><p>MCP endpoint: '+escape(resource)+'</p>'
     : '<p>Setup required. In this service’s Render Environment settings, add FORMAT_FINDER_API_KEY and a unique JAKE_EATS_CONNECT_PASSWORD (at least 16 characters). Save and redeploy.</p>')));
-  app.get('/health', (req, res) => res.json({ service: title, status: ready() ? 'ready' : 'setup_required' }));
+  app.get('/health', (req, res) => res.json({ service: title, status: ready() ? 'ready' : 'setup_required',
+    setupIssues: [
+      !config.apiKey && 'FORMAT_FINDER_API_KEY is missing',
+      !(config.password?.length >= 16) && 'JAKE_EATS_CONNECT_PASSWORD must contain at least 16 characters',
+      !(config.signingKey?.length >= 32) && 'MCP_SIGNING_KEY must contain at least 32 characters'
+    ].filter(Boolean)
+  }));
   app.get('/.well-known/oauth-protected-resource', (req, res) => res.json({ resource, authorization_servers: [origin], scopes_supported: scope.split(' ') }));
   app.get('/.well-known/oauth-protected-resource/mcp', (req, res) => res.redirect('/.well-known/oauth-protected-resource'));
   app.get('/.well-known/oauth-authorization-server', (req, res) => res.json({
