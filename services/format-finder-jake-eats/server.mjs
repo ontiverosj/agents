@@ -51,7 +51,9 @@ export function createApp(config, makeUpstream) {
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
   app.use((req, res, next) => {
-    res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+    // A no-referrer policy makes browser form POSTs send Origin: null.
+    // same-origin preserves this site's CSRF check without leaking URLs off-site.
+    res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin',
       'Content-Security-Policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" });
     next();
   });
@@ -117,7 +119,18 @@ export function createApp(config, makeUpstream) {
   app.post('/authorize', setupGate, rateLimit, (req, res) => {
     const p = pending.get(req.body.request);
     const cookie = (req.headers.cookie || '').split(';').map(s=>s.trim()).find(s=>s.startsWith('ff_consent='))?.slice(11);
-    if (!p || p.exp < Date.now() || req.headers.origin !== origin || !equal(cookie || '', p.csrf)) return res.sendStatus(400);
+    if (!p || p.exp < Date.now()) {
+      console.warn('oauth_consent_rejected: expired_request');
+      return res.status(400).send('This sign-in session expired. Close this page and start Connect again in ChatGPT.');
+    }
+    if (req.headers.origin !== origin) {
+      console.warn('oauth_consent_rejected: origin_mismatch');
+      return res.status(400).send('The browser could not verify this sign-in page. Close it and start Connect again in ChatGPT.');
+    }
+    if (!equal(cookie || '', p.csrf)) {
+      console.warn('oauth_consent_rejected: cookie_mismatch');
+      return res.status(400).send('The sign-in cookie is missing or changed. Allow cookies for this service and start Connect again in ChatGPT.');
+    }
     if (!equal(req.body.password || '', config.password)) return res.status(403).send('Incorrect password. Go back and retry.');
     pending.delete(req.body.request);
     for (const [k,v] of codes) if (v.exp < Date.now()) codes.delete(k);
