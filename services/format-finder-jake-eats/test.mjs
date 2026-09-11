@@ -25,10 +25,15 @@ test('setup gate, OAuth PKCE, replay protection, protected MCP and restart persi
     code_challenge:createHash('sha256').update(verifier).digest('base64url'),resource:cfg.origin+'/mcp',scope:'format:read format:generate',state:'test-state'});
   const consent=await get('/authorize?'+query);
   assert.equal(consent.status,200);
+  // Browser form POSTs under no-referrer use Origin: null and fail CSRF validation.
+  assert.equal(consent.headers.get('referrer-policy'),'same-origin');
   const cookie=consent.headers.get('set-cookie').split(';')[0];
   const html=await consent.text();
   const request=/name="request" value="([^"]+)"/.exec(html)[1];
   assert.equal((await post('/authorize',{request,password:cfg.password})).status,400);
+  assert.equal((await post('/authorize',{request,password:cfg.password},{cookie,origin:'null'})).status,400);
+  assert.equal((await post('/authorize',{request,password:cfg.password},{cookie,origin:'https://evil.example'})).status,400);
+  assert.equal((await post('/authorize',{request,password:cfg.password},{origin:cfg.origin})).status,400);
   assert.equal((await post('/authorize',{request,password:'wrong'},{cookie,origin:cfg.origin})).status,403);
   const login=await post('/authorize',{request,password:cfg.password},{cookie,origin:cfg.origin});
   assert.equal(login.status,302);
