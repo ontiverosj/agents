@@ -54,7 +54,7 @@ export function createApp(config, makeUpstream) {
     // A no-referrer policy makes browser form POSTs send Origin: null.
     // same-origin preserves this site's CSRF check without leaking URLs off-site.
     res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin',
-      'Content-Security-Policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'" });
+      'Content-Security-Policy': "default-src 'none'; form-action 'self' https://chatgpt.com; frame-ancestors 'none'; base-uri 'none'" });
     next();
   });
   app.use(express.json({ limit: '256kb' }));
@@ -120,7 +120,7 @@ export function createApp(config, makeUpstream) {
     const p = pending.get(req.body.request);
     const cookie = (req.headers.cookie || '').split(';').map(s=>s.trim()).find(s=>s.startsWith('ff_consent='))?.slice(11);
     if (!p || p.exp < Date.now()) {
-      console.warn('oauth_consent_rejected: expired_request');
+      console.warn(p ? 'oauth_consent_rejected: expired_request' : 'oauth_consent_rejected: missing_or_used_request');
       return res.status(400).send('This sign-in session expired. Close this page and start Connect again in ChatGPT.');
     }
     if (req.headers.origin !== origin) {
@@ -139,7 +139,8 @@ export function createApp(config, makeUpstream) {
     const dest = new URL(p.redirect);
     dest.searchParams.set('code', code); dest.searchParams.set('state', p.state); dest.searchParams.set('iss', origin);
     res.clearCookie('ff_consent', { path: '/authorize' });
-    res.redirect(dest.toString());
+    console.info('oauth_consent_accepted: redirecting_to_chatgpt');
+    res.redirect(303, dest.toString());
   });
   app.post('/token', setupGate, rateLimit, (req, res) => {
     const b = req.body, c = codes.get(b.code);
